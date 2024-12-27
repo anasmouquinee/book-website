@@ -37,6 +37,7 @@
   --z-fixed: 100;
 }
 
+
 /*========== Responsive typography ==========*/
 @media screen and (min-width: 1150px) {
   :root {
@@ -93,7 +94,47 @@
       transform: translateX(0);
   }
 }
+.profile {
+  position: fixed;
+  top: -100%; /* Start offscreen */
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: var(--body-color);
+  z-index: var(--z-fixed);
+  transition: top 0.4s ease;
+  overflow-y: auto;
+  padding: 1rem;
+}
 
+/* Only show when active */
+.profile.show-profile {
+  top: 0;
+}
+
+/* Container adjustments */
+.profile__container {
+  background-color: var(--container-color);
+  padding: 2rem 1.5rem;
+  border-radius: 1rem;
+  border: 2px solid var(--border-color);
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* Mobile specific adjustments */
+@media screen and (max-width: 768px) {
+  .profile {
+      padding: 0;
+  }
+  
+  .profile__container {
+      border-radius: 0;
+      margin: 0;
+      height: 100%;
+      border: none;
+  }
+}
 /*=============== BASE ===============*/
 * {
   box-sizing: border-box;
