@@ -142,7 +142,58 @@ class UIController {
             }
         });
     }
+// Add this method to your UIController class
+handleSearch(e) {
+    e.preventDefault();
+    const query = this.searchInput.value.toLowerCase().trim();
+    const books = JSON.parse(localStorage.getItem('books') || '[]');
+    
+    // Filter books based on query
+    const results = books.filter(book => 
+        book.title.toLowerCase().includes(query) || 
+        book.description.toLowerCase().includes(query) ||
+        book.genre.toLowerCase().includes(query)
+    );
 
+    // Get search results container
+    const searchResults = DOMUtils.getElement('.search__results');
+    
+    // Update UI with results
+    if (query === '') {
+        searchResults.innerHTML = `
+            <div class="search__empty">
+                <i class="ri-search-line"></i>
+                <p>Type something to search</p>
+            </div>
+        `;
+        return;
+    }
+
+    if (results.length === 0) {
+        searchResults.innerHTML = `
+            <div class="search__empty">
+                <i class="ri-error-warning-line"></i>
+                <p>No results found</p>
+            </div>
+        `;
+        return;
+    }
+
+    searchResults.innerHTML = `
+        <div class="search__grid">
+            ${results.map(book => `
+                <article class="search__card" onclick="app.showBookDetails('${book.id}')">
+                    <img src="${book.image}" alt="${book.title}" class="search__img">
+                    <div class="search__data">
+                        <h3 class="search__title">${book.title}</h3>
+                        <span class="search__genre">${book.genre}</span>
+                        <span class="search__price">$${book.discountPrice || book.price}</span>
+                    </div>
+                </article>
+            `).join('')}
+        </div>
+    `;
+}
     updateBookDisplays() {
         const books = JSON.parse(localStorage.getItem('books') || '[]');
         
@@ -636,7 +687,13 @@ initializeBooks() {
       // Core elements
       this.header = DOMUtils.getElement('#header');
       this.themeButton = DOMUtils.getElement('#theme-button');
-
+      // Search elements
+      this.searchButton = DOMUtils.getElement('#search-button');
+      this.searchContent = DOMUtils.getElement('#search-content');
+      this.searchClose = DOMUtils.getElement('#search-close');
+      this.searchForm = DOMUtils.getElement('.search__form');
+      this.searchInput = DOMUtils.getElement('.search__input');
+  
       // Auth elements
       this.loginButton = DOMUtils.getElement('#login-button');
       this.loginContent = DOMUtils.getElement('#login-content');
@@ -662,7 +719,12 @@ initializeBooks() {
       // Auth listeners
       this.loginForm?.addEventListener('submit', e => this.handleLogin(e));
       this.signupForm?.addEventListener('submit', e => this.handleSignup(e));
-      
+             // Search listeners
+             this.searchButton?.addEventListener('click', () => this.showModal('search'));
+             this.searchClose?.addEventListener('click', () => this.hideModal('search'));
+             this.searchForm?.addEventListener('submit', (e) => this.handleSearch(e));
+             this.searchInput?.addEventListener('input', (e) => this.handleSearch(e));
+         
       // Modal close listeners
       this.loginClose?.addEventListener('click', () => this.hideModal('login'));
       this.signupClose?.addEventListener('click', () => this.hideModal('signup'));
