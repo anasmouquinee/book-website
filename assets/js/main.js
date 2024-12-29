@@ -146,28 +146,34 @@ class CartController {
   }
 
   removeItem(itemId) {
-      this.items = this.items.filter(item => item.id !== itemId);
-      this.saveCart();
-  }
+    if (!itemId) {
+        throw new Error('Item ID is required');
+    }
+    
+    const index = this.items.findIndex(item => item.id === itemId);
+    if (index !== -1) {
+        this.items.splice(index, 1);
+        this.saveCart();
+        return true;
+    }
+    return false;
+}
 
   getTotal() {
       return this.items.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
   }
 
   saveCart() {
-      localStorage.setItem('cart', JSON.stringify(this.items));
-  }
-  removeFromCart(itemId) {
-    this.items = this.items.filter(item => item.id !== itemId);
-    this.saveCart();
+    localStorage.setItem('cartItems', JSON.stringify(this.items));
 }
+
 }
 
 /*=============== UI CONTROLLER ===============*/
 class UIController {
     constructor() {
         this.DEFAULT_BOOK_IMAGE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAADsQAAA7EB9YPtSQAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAL5SURBVHic7d0/iBxlHMfxz+/2FEUURRRBBCsrQYV0aaKFnXZpLBQE0cLOQtBCsBLUQhC0ULAQtEqlEBHBQkguVVI8JI1/IEFQFPz3vp+12Sf3srkke8/u7Ozs8nm/YLmd3Wd3f8/3O7M7OzsDSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZK0PKZNPdigL3VSrOBVovhEXPrS+rVnOmlaq9DB8vcAHwEPdtF0H/gy4KkUMm26OehBcI0YH2Dl5QUtkN9T4IEUON1k0z0IrkV8HQxvuhv4KspzMR1vsmm5IdJVngwGyqVX1wKHUsis7lsY0CceBQbMhUBDZkAgSYPAYJcWU7A/wv0anD5kdOooHPkLzp9bqs0OA14BOklwOILbGO1rkEfh/Ck4/Bt0MsFThAbC1QDJ6wDA4RG8EXBLm9ptwdEZuO8kvLUKN7WpXQYMeBkAuLuB9lIKLJb1Nqjrzbl1dTjaOeAcJM8BwxbwQoIz69WbagWObiP5HED9kQHDZEAgGRAkAwLVPFk1tIA8Qe0BFYDh5IxHgEAZECgDAmVAoAwIlAGBMiBQBgTKgEAZECgDAmVAoAwIlAGBMiBQBgTKgEAZECgDAmVAoAwIlAGBMiBQBgTKgEAZECgDAmVAoAwIlAGBMiBQBgTKgEAZEKhQrxCqBk3gqRnMlmsEpzGuD7iQAkfWeP6lkFvXdg64eJXb/l8urX/7AuVVwmfA+RQ4uwa3rsNbKTBZh1fXYXsdfoDFr+0csJ4CD6TAWArsTYG7UuDMBK6fwK+Ay66up73oyL4U+CPG0El8c/6VXf3a7gHHUuDnVbiQHV/bfeBjVoGfRnDnJfilvI7w8wQeicD3MyuBHc45oJu13QfeYwIfJzift62VcwD1mQGBMiBQBgTKgEAZECgDAmVAoAwIlAGBMiBQBgTKgEAZECgDAmVAoAwIlAGBMiBQBgTKgEAZECgDAmVAoAwIlAGBMiBQBgTKgEAZECgDAmVAoAwIlAGBMiBQBgTKgEAZECgDAmVAoAwIlAGBMiBQ/wI8C1tnOfj4WAAAAABJRU5ErkJggg=='; // Basic book icon in base64
-
+        this.handleCartActions = this.handleCartActions.bind(this);
         this.initializeControllers();
         this.initializeElements();
         this.initializeBooks();
@@ -791,18 +797,9 @@ initializeBooks() {
             this.switchProfileTab(tabId); 
         });
     });
-    document.addEventListener('click', e => {
-        if (e.target.matches('.cart-item__remove') || e.target.closest('.cart-item__remove')) {
-            const cartItem = e.target.closest('.cart-item');
-            const itemId = cartItem.dataset.itemId;
-            
-            if (confirm('Remove this item from cart?')) {
-                this.cart.removeFromCart(itemId);
-                this.updateCartUI();
-                DOMUtils.showMessage('Item removed from cart', 'info');
-            }
-        }
-    });
+
+    document.addEventListener('click', this.handleCartActions);
+
     document.getElementById('show-recovery')?.addEventListener('click', (e) => {
         e.preventDefault();
         this.hideModal('login');
@@ -842,24 +839,6 @@ initializeBooks() {
     document.querySelector('.recovery__close')?.addEventListener('click', () => {
         this.hideModal('recovery');
     });
-}
-
-async handlePasswordReset(e) {
-    try {
-        const email = DOMUtils.getElement('#recovery-email').value;
-        const code = DOMUtils.getElement('#recovery-code').value;
-        const newPassword = DOMUtils.getElement('#recovery-new-pass').value;
-
-        const newCode = await this.auth.resetPassword(email, code, newPassword);
-        
-        alert(`Your password has been reset.\nYour new recovery code is: ${newCode}`);
-        
-        this.hideModal('recovery');
-        this.showModal('login');
-        DOMUtils.showMessage('Password reset successful', 'success');
-    } catch (error) {
-        DOMUtils.showMessage(error.message, 'error');
-    }
     document.addEventListener('click', e => {
         // Handle add to cart
         if (e.target.matches('.add-to-cart')) {
@@ -953,7 +932,6 @@ async handlePasswordReset(e) {
       this.themeButton?.addEventListener('click', () => this.toggleTheme());
 
       // Cart actions
-      document.addEventListener('click', e => this.handleCartActions(e));
 
       // Profile actions
       this.profileTabs?.forEach(tab => {
@@ -964,7 +942,41 @@ async handlePasswordReset(e) {
       document.addEventListener('keydown', e => {
           if (e.key === 'Escape') this.hideAllModals();
       });
+
   }
+  handleCartActions(e) {
+    // Handle remove from cart
+    const removeButton = e.target.closest('.cart-item__remove');
+    if (removeButton) {
+        e.stopPropagation();
+        
+        const cartItem = removeButton.closest('.cart-item');
+        const itemId = cartItem?.dataset.itemId;
+        
+        if (itemId && confirm('Remove this item from cart?')) {
+            this.cart.removeItem(itemId);
+            this.updateCartUI();
+            DOMUtils.showMessage('Item removed from cart', 'success');
+        }
+    }
+}
+  async handlePasswordReset(e) {
+    try {
+        const email = DOMUtils.getElement('#recovery-email').value;
+        const code = DOMUtils.getElement('#recovery-code').value;
+        const newPassword = DOMUtils.getElement('#recovery-new-pass').value;
+
+        const newCode = await this.auth.resetPassword(email, code, newPassword);
+        
+        alert(`Your password has been reset.\nYour new recovery code is: ${newCode}`);
+        
+        this.hideModal('recovery');
+        this.showModal('login');
+        DOMUtils.showMessage('Password reset successful', 'success');
+    } catch (error) {
+        DOMUtils.showMessage(error.message, 'error');
+    }
+}
   async handleLogin(e) {
     e.preventDefault();
     try {
@@ -1046,26 +1058,24 @@ async handlePasswordUpdate(e) {
   }
 
   handleCartActions(e) {
-      if (e.target.matches('.add-to-cart')) {
-          if (!this.auth.currentUser) {
-              DOMUtils.showMessage('Please login to add items to cart', 'error');
-              return;
-          }
-
-          const bookId = e.target.dataset.bookId;
-          const bookTitle = e.target.dataset.bookTitle;
-          const bookPrice = parseFloat(e.target.dataset.bookPrice);
-          
-          this.cart.addItem({ id: bookId, title: bookTitle, price: bookPrice });
-          this.updateCartUI();
-      }
-
-      if (e.target.matches('.cart-item__remove')) {
-          const itemId = e.target.dataset.id;
-          this.cart.removeItem(itemId);
-          this.updateCartUI();
-      }
-  }
+    if (e.target.matches('.cart-item__remove') || e.target.closest('.cart-item__remove')) {
+        const cartItem = e.target.closest('.cart-item');
+        if (!cartItem) return;
+        
+        const itemId = cartItem.dataset.itemId;
+        if (confirm('Remove this item from cart?')) {
+            try {
+                const removed = this.cart.removeItem(itemId);
+                if (removed) {
+                    this.updateCartUI();
+                    DOMUtils.showMessage('Item removed from cart', 'success');
+                }
+            } catch (error) {
+                DOMUtils.showMessage('Failed to remove item', 'error');
+            }
+        }
+    }
+}
 
 
   updateAuthUI() {
