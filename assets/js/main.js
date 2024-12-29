@@ -73,6 +73,27 @@ class AuthController {
       this.currentUser = null;
       localStorage.removeItem('currentUser');
   }
+  updatePassword(currentPassword, newPassword) {
+    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    const userIndex = users.findIndex(u => u.email === this.currentUser.email);
+    
+    if (userIndex === -1) {
+      throw new Error('User not found');
+    }
+
+    // Verify current password
+    if (users[userIndex].password !== currentPassword) {
+      throw new Error('Current password is incorrect');
+    }
+
+    // Update password
+    users[userIndex].password = newPassword;
+    localStorage.setItem('users', JSON.stringify(users));
+    
+    // Update current user
+    this.currentUser = users[userIndex];
+    localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+  }
 }
 
 /*=============== CART CONTROLLER ===============*/
@@ -716,6 +737,9 @@ initializeBooks() {
   }
 
   initializeEventListeners() {
+    //pass handler
+    const passwordForm = document.querySelector('.profile__password-form');
+    passwordForm?.addEventListener('submit', (e) => this.handlePasswordUpdate(e));
       // Auth listeners
       this.loginForm?.addEventListener('submit', e => this.handleLogin(e));
       this.signupForm?.addEventListener('submit', e => this.handleSignup(e));
@@ -732,7 +756,7 @@ initializeBooks() {
     this.profileTabs?.forEach(tab => {
         tab.addEventListener('click', () => {
             const tabId = tab.dataset.tab;
-            this.switchProfileTab(tabId); // Pass the tab ID, not the tab element
+            this.switchProfileTab(tabId); 
         });
     });
     document.addEventListener('click', e => {
@@ -879,7 +903,38 @@ initializeBooks() {
         DOMUtils.showMessage(error.message, 'error');
     }
 }
+async handlePasswordUpdate(e) {
+    e.preventDefault();
+    
+    const currentPass = document.getElementById('current-pass').value;
+    const newPass = document.getElementById('new-pass').value;
+    const confirmPass = document.getElementById('confirm-pass').value;
 
+    try {
+      // Validate passwords
+      if (!currentPass || !newPass || !confirmPass) {
+        throw new Error('All fields are required');
+      }
+
+      if (newPass !== confirmPass) {
+        throw new Error('New passwords do not match');
+      }
+
+      if (newPass.length < 8) {
+        throw new Error('Password must be at least 8 characters');
+      }
+
+      // Update password
+      await this.auth.updatePassword(currentPass, newPass);
+      
+      // Clear form
+      e.target.reset();
+      
+      DOMUtils.showMessage('Password updated successfully', 'success');
+    } catch (error) {
+      DOMUtils.showMessage(error.message, 'error');
+    }
+  }
   async handleSignup(e) {
       e.preventDefault();
       try {
