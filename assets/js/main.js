@@ -28,19 +28,51 @@ class AuthController {
     this.initializeAdmin();
 }
 
-  signup(userData) {
-      if (!userData.email || !userData.password || !userData.name) {
-          throw new Error('All fields are required');
-      }
+generateRecoveryCode() {
+    return Math.random().toString(36).substring(2, 10).toUpperCase();
+}
 
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
-      if (users.some(user => user.email === userData.email)) {
-          throw new Error('Email already registered');
-      }
+signup(userData) {
+    if (!userData.email || !userData.password || !userData.name) {
+        throw new Error('All fields are required');
+    }
 
-      users.push(userData);
-      localStorage.setItem('users', JSON.stringify(users));
-  }
+    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    if (users.some(user => user.email === userData.email)) {
+        throw new Error('Email already registered');
+    }
+
+    // Generate recovery code
+    const recoveryCode = this.generateRecoveryCode();
+    
+    // recovery code
+    users.push({
+        ...userData,
+        recoveryCode
+    });
+    
+    localStorage.setItem('users', JSON.stringify(users));
+    return recoveryCode; // Return code to show to user
+}
+resetPassword(email, recoveryCode, newPassword) {
+    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    const userIndex = users.findIndex(u => 
+        u.email === email && 
+        u.recoveryCode === recoveryCode
+    );
+
+    if (userIndex === -1) {
+        throw new Error('Invalid email or recovery code');
+    }
+
+    // Update password
+    users[userIndex].password = newPassword;
+    // Generate new recovery code
+    users[userIndex].recoveryCode = this.generateRecoveryCode();
+    
+    localStorage.setItem('users', JSON.stringify(users));
+    return users[userIndex].recoveryCode; // Return new code
+}
   initializeAdmin() {
     const users = JSON.parse(localStorage.getItem('users') || '[]');
     const adminExists = users.some(user => user.isAdmin);
@@ -771,7 +803,34 @@ initializeBooks() {
             }
         }
     });
+    document.getElementById('show-recovery')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.hideModal('login');
+        this.showModal('recovery');
+    });
 
+    document.querySelector('.recovery__form')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        this.handlePasswordReset(e);
+    });
+}
+
+async handlePasswordReset(e) {
+    try {
+        const email = DOMUtils.getElement('#recovery-email').value;
+        const code = DOMUtils.getElement('#recovery-code').value;
+        const newPassword = DOMUtils.getElement('#recovery-new-pass').value;
+
+        const newCode = await this.auth.resetPassword(email, code, newPassword);
+        
+        alert(`Your password has been reset.\nYour new recovery code is: ${newCode}`);
+        
+        this.hideModal('recovery');
+        this.showModal('login');
+        DOMUtils.showMessage('Password reset successful', 'success');
+    } catch (error) {
+        DOMUtils.showMessage(error.message, 'error');
+    }
     document.addEventListener('click', e => {
         // Handle add to cart
         if (e.target.matches('.add-to-cart')) {
@@ -936,23 +995,25 @@ async handlePasswordUpdate(e) {
     }
   }
   async handleSignup(e) {
-      e.preventDefault();
-      try {
-          const userData = {
-              name: DOMUtils.getElement('#signup-name').value,
-              email: DOMUtils.getElement('#signup-email').value,
-              password: DOMUtils.getElement('#signup-pass').value
-          };
-          
-          await this.auth.signup(userData);
-          DOMUtils.showMessage('Signup successful! Please login.', 'success');
-          
-          e.target.reset();
-          this.hideModal('signup');
-          this.showModal('login');
-      } catch (error) {
-          DOMUtils.showMessage(error.message, 'error');
-      }
+        e.preventDefault();
+        try {
+            const userData = {
+                name: DOMUtils.getElement('#signup-name').value,
+                email: DOMUtils.getElement('#signup-email').value,
+                password: DOMUtils.getElement('#signup-pass').value
+            };
+            
+            const recoveryCode = this.auth.signup(userData);
+            
+            alert(`Please save this recovery code: ${recoveryCode}\nYou will need it to reset your password if you forget it.`);
+            
+            DOMUtils.showMessage('Signup successful! Please login.', 'success');
+            e.target.reset();
+            this.hideModal('signup');
+            this.showModal('login');
+        } catch (error) {
+            DOMUtils.showMessage(error.message, 'error');
+        }
   }
 
   handleCartActions(e) {

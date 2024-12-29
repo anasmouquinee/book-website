@@ -116,9 +116,10 @@
 
       <button class="button signup__button">Sign Up</button>
 
-      <p class="signup__signin">
-         Already have an account? <a href="#login">Login</a>
-      </p>
+<p class="signup__signin">
+   Already have an account? 
+   <a href="#" class="switch-to-login">Login</a>
+</p>
    </form>
 
    <i class="ri-close-line signup__close" id="signup-close"></i>
@@ -145,9 +146,9 @@
    You do not have an account? <a href="#" id="show-signup">Sign up</a>
                </span>
    
-               <a href="#" class="login__forgot">
-                  You forgot your password
-               </a>
+               <div class="login__forgot">
+                  <a href="#" id="show-recovery">Forgot Password?</a>
+              </div>
    
                <button type="submit" class="login__button button">Log In</button>
             </div>
@@ -155,7 +156,31 @@
 
          <i class="ri-close-line login__close" id="login-close"></i>
       </div>
+    <!--==================== RECOVERY ====================-->
+    <div class="recovery grid" id="recovery-content">
+      <form class="recovery__form grid">
+          <h3 class="recovery__title">Reset Password</h3>
+          
+          <div class="recovery__group">
+              <label for="recovery-email" class="recovery__label">Email</label>
+              <input type="email" id="recovery-email" class="recovery__input" placeholder="Enter your email">
+          </div>
 
+          <div class="recovery__group">
+              <label for="recovery-code" class="recovery__label">Recovery Code</label>
+              <input type="text" id="recovery-code" class="recovery__input" placeholder="Enter your recovery code">
+          </div>
+
+          <div class="recovery__group">
+              <label for="recovery-new-pass" class="recovery__label">New Password</label>
+              <input type="password" id="recovery-new-pass" class="recovery__input" placeholder="Enter new password">
+          </div>
+
+          <button type="submit" class="button recovery__button">Reset Password</button>
+      </form>
+      
+      <i class="ri-close-line recovery__close" id="recovery-close"></i>
+  </div>
       <!--==================== MAIN ====================-->
       <main class="main">
          <!--==================== HOME ====================-->

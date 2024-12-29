@@ -866,6 +866,34 @@ body.dark-theme {
     height: 150px;
   }
 }
+/* Add to styles.css */
+.recovery {
+  position: fixed;
+  top: -100%;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: var(--z-fixed);
+  background-color: hsla(230, 62%, 96%, .6);
+  backdrop-filter: blur(16px);
+  align-items: center;
+  padding: 1.5rem;
+  text-align: center;
+  transition: top .4s;
+}
+
+.recovery__form {
+  background-color: var(--container-color);
+  padding: 2rem 1.5rem;
+  border: 2px solid var(--border-color);
+  row-gap: 1.25rem;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.show-recovery {
+  top: 0;
+}
 /* History section */
 .profile__history {
   display: grid;
