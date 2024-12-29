@@ -813,6 +813,35 @@ initializeBooks() {
         e.preventDefault();
         this.handlePasswordReset(e);
     });
+    document.querySelector('.switch-to-login')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.hideModal('signup');
+        this.showModal('login');
+    });
+
+    document.querySelector('#show-signup')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.hideModal('login');
+        this.showModal('signup');
+    });
+
+    // Add profile close handler
+    document.querySelector('.profile__close')?.addEventListener('click', () => {
+        document.querySelector('#profile-content').classList.remove('show-profile');
+    });
+
+    // Add logout handler
+    document.querySelector('.profile__logout')?.addEventListener('click', () => {
+        if (confirm('Are you sure you want to logout?')) {
+            this.auth.logout();
+            document.querySelector('#profile-content').classList.remove('show-profile');
+            this.updateAuthUI();
+            DOMUtils.showMessage('Logged out successfully', 'info');
+        }
+    });
+    document.querySelector('.recovery__close')?.addEventListener('click', () => {
+        this.hideModal('recovery');
+    });
 }
 
 async handlePasswordReset(e) {
@@ -1195,13 +1224,26 @@ initializeAdminFeatures() {
   }
 
   initializeTheme() {
-      const savedTheme = localStorage.getItem('selected-theme');
-      if (savedTheme === 'dark') {
-          document.body.classList.add('dark-theme');
-          this.themeButton.classList.add('ri-sun-line');
-          this.themeButton.classList.remove('ri-moon-line');
-      }
-  }
+    const themeButton = document.getElementById('theme-button');
+    const darkTheme = 'dark-theme';
+    const iconTheme = 'ri-sun-line';
+    const selectedTheme = localStorage.getItem('selected-theme');
+    const selectedIcon = localStorage.getItem('selected-icon');
+    const getCurrentTheme = () => document.body.classList.contains(darkTheme) ? 'dark' : 'light';
+    const getCurrentIcon = () => themeButton.classList.contains(iconTheme) ? 'ri-moon-line' : 'ri-sun-line';
+
+    if (selectedTheme) {
+        document.body.classList[selectedTheme === 'dark' ? 'add' : 'remove'](darkTheme);
+        themeButton.classList[selectedIcon === 'ri-sun-line' ? 'add' : 'remove'](iconTheme);
+    }
+    themeButton?.addEventListener('click', () => {
+        document.body.classList.toggle(darkTheme);
+        themeButton.classList.toggle(iconTheme);
+        
+        localStorage.setItem('selected-theme', getCurrentTheme());
+        localStorage.setItem('selected-icon', getCurrentIcon());
+    });
+}
 }
 
 // Initialize application
