@@ -172,8 +172,13 @@ class CartController {
 /*=============== UI CONTROLLER ===============*/
 class UIController {
     constructor() {
+        this.darkTheme = 'dark-theme';
+        this.iconTheme = 'ri-sun-line';
+        this.themeButton = document.getElementById('theme-button');
+        this.initializeTheme();
         this.DEFAULT_BOOK_IMAGE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAADsQAAA7EB9YPtSQAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAL5SURBVHic7d0/iBxlHMfxz+/2FEUURRRBBCsrQYV0aaKFnXZpLBQE0cLOQtBCsBLUQhC0ULAQtEqlEBHBQkguVVI8JI1/IEFQFPz3vp+12Sf3srkke8/u7Ozs8nm/YLmd3Wd3f8/3O7M7OzsDSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZK0PKZNPdigL3VSrOBVovhEXPrS+rVnOmlaq9DB8vcAHwEPdtF0H/gy4KkUMm26OehBcI0YH2Dl5QUtkN9T4IEUON1k0z0IrkV8HQxvuhv4KspzMR1vsmm5IdJVngwGyqVX1wKHUsis7lsY0CceBQbMhUBDZkAgSYPAYJcWU7A/wv0anD5kdOooHPkLzp9bqs0OA14BOklwOILbGO1rkEfh/Ck4/Bt0MsFThAbC1QDJ6wDA4RG8EXBLm9ptwdEZuO8kvLUKN7WpXQYMeBkAuLuB9lIKLJb1Nqjrzbl1dTjaOeAcJM8BwxbwQoIz69WbagWObiP5HED9kQHDZEAgGRAkAwLVPFk1tIA8Qe0BFYDh5IxHgEAZECgDAmVAoAwIlAGBMiBQBgTKgEAZECgDAmVAoAwIlAGBMiBQBgTKgEAZECgDAmVAoAwIlAGBMiBQBgTKgEAZECgDAmVAoAwIlAGBMiBQBgTKgEAZEKhQrxCqBk3gqRnMlmsEpzGuD7iQAkfWeP6lkFvXdg64eJXb/l8urX/7AuVVwmfA+RQ4uwa3rsNbKTBZh1fXYXsdfoDFr+0csJ4CD6TAWArsTYG7UuDMBK6fwK+Ay66up73oyL4U+CPG0El8c/6VXf3a7gHHUuDnVbiQHV/bfeBjVoGfRnDnJfilvI7w8wQeicD3MyuBHc45oJu13QfeYwIfJzift62VcwD1mQGBMiBQBgTKgEAZECgDAmVAoAwIlAGBMiBQBgTKgEAZECgDAmVAoAwIlAGBMiBQBgTKgEAZECgDAmVAoAwIlAGBMiBQBgTKgEAZECgDAmVAoAwIlAGBMiBQBgTKgEAZECgDAmVAoAwIlAGBMiBQ/wI8C1tnOfj4WAAAAABJRU5ErkJggg=='; // Basic book icon in base64
         this.handleCartActions = this.handleCartActions.bind(this);
+        this.themeButton = document.getElementById('theme-button');
         this.initializeControllers();
         this.initializeElements();
         this.initializeBooks();
@@ -181,7 +186,7 @@ class UIController {
         this.initializeTheme();
         this.updateAuthUI();
         this.updateBookDisplays();
-        this.initializeSwipers(); // Ensure Swiper is initialized
+        this.initializeSwipers(); 
     }
 
     initializeSwipers() {
@@ -1224,36 +1229,45 @@ initializeAdminFeatures() {
       });
   }
 
-  toggleTheme() {
-      document.body.classList.toggle('dark-theme');
-      this.themeButton.classList.toggle('ri-sun-line');
-      this.themeButton.classList.toggle('ri-moon-line');
-      
-      const theme = document.body.classList.contains('dark-theme') ? 'dark' : 'light';
-      localStorage.setItem('selected-theme', theme);
-  }
-
   initializeTheme() {
-    const themeButton = document.getElementById('theme-button');
-    const darkTheme = 'dark-theme';
-    const iconTheme = 'ri-sun-line';
-    const selectedTheme = localStorage.getItem('selected-theme');
-    const selectedIcon = localStorage.getItem('selected-icon');
-    const getCurrentTheme = () => document.body.classList.contains(darkTheme) ? 'dark' : 'light';
-    const getCurrentIcon = () => themeButton.classList.contains(iconTheme) ? 'ri-moon-line' : 'ri-sun-line';
-
-    if (selectedTheme) {
-        document.body.classList[selectedTheme === 'dark' ? 'add' : 'remove'](darkTheme);
-        themeButton.classList[selectedIcon === 'ri-sun-line' ? 'add' : 'remove'](iconTheme);
+    if (!this.themeButton) {
+        console.error('Theme button not found');
+        return;
     }
-    themeButton?.addEventListener('click', () => {
-        document.body.classList.toggle(darkTheme);
-        themeButton.classList.toggle(iconTheme);
-        
-        localStorage.setItem('selected-theme', getCurrentTheme());
-        localStorage.setItem('selected-icon', getCurrentIcon());
-    });
+
+    // Get saved preferences
+    const savedTheme = localStorage.getItem('selected-theme');
+    
+    // Apply saved theme or default
+    if (savedTheme === 'dark') {
+        document.body.classList.add(this.darkTheme);
+        this.themeButton.classList.remove('ri-moon-line');
+        this.themeButton.classList.add(this.iconTheme);
+    }
+
+    // Bind theme toggle with correct context
+    this.toggleTheme = this.toggleTheme.bind(this);
+    this.themeButton.addEventListener('click', this.toggleTheme);
+    
+    console.log('Theme initialized:', savedTheme || 'light');
 }
+
+toggleTheme() {
+    // Toggle body class
+    document.body.classList.toggle(this.darkTheme);
+    
+    // Toggle icon
+    const isDark = document.body.classList.contains(this.darkTheme);
+    this.themeButton.className = isDark ? this.iconTheme : 'ri-moon-line';
+    
+    // Save preference
+    localStorage.setItem('selected-theme', isDark ? 'dark' : 'light');
+    
+    console.log('Theme toggled:', isDark ? 'dark' : 'light');
+}
+
+
+
 }
 
 // Initialize application
