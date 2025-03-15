@@ -1131,7 +1131,7 @@
       <a href="#" class="scrollup" id="scroll-up">
          <i class="ri-arrow-up-line"></i>
       </a>
-
+      <script src="https://www.paypal.com/sdk/js?client-id=YOUR_CLIENT_ID"></script>
       <!--=============== SCROLLREVEAL ===============-->
       <script src="assets/js/scrollreveal.min.js"></script>
 
@@ -1141,4 +1141,84 @@
       <!--=============== MAIN JS ===============-->
       <script src="assets/js/main.js"></script>
    </body>
+   <!-- Add this before the closing </body> tag -->
+
+<!--==================== CHECKOUT ====================-->
+<div class="checkout grid" id="checkout-content">
+   <div class="checkout__container grid">
+      <h3 class="checkout__title">Checkout</h3>
+      
+      <div class="checkout__summary">
+         <h4 class="checkout__subtitle">Order Summary</h4>
+         <div class="checkout__items">
+            <!-- Items will be listed here dynamically -->
+         </div>
+         <div class="checkout__total">
+            <span>Total:</span>
+            <span class="checkout__amount">$0.00</span>
+         </div>
+      </div>
+      
+      <div class="checkout__payment">
+         <h4 class="checkout__subtitle">Payment Method</h4>
+         
+         <div class="checkout__tabs" role="tablist">
+            <button class="checkout__tab active" data-tab="card" role="tab">
+               <i class="ri-bank-card-line"></i> Credit Card
+            </button>
+            <button class="checkout__tab" data-tab="paypal" role="tab">
+               <i class="ri-paypal-line"></i> PayPal
+            </button>
+         </div>
+         
+         <!-- Credit Card Form -->
+         <div class="checkout__content active" id="card-content" role="tabpanel">
+            <form class="checkout__form grid" id="card-form">
+               <div class="checkout__group">
+                  <label for="card-name" class="checkout__label">Cardholder Name</label>
+                  <input type="text" id="card-name" class="checkout__input" placeholder="Name on card" required>
+               </div>
+               
+               <div class="checkout__group">
+                  <label for="card-number" class="checkout__label">Card Number</label>
+                  <input type="text" id="card-number" class="checkout__input" placeholder="1234 5678 9012 3456" required>
+               </div>
+               
+               <div class="checkout__flex">
+                  <div class="checkout__group">
+                     <label for="card-expiry" class="checkout__label">Expiration Date</label>
+                     <input type="text" id="card-expiry" class="checkout__input" placeholder="MM/YY" required>
+                  </div>
+                  
+                  <div class="checkout__group">
+                     <label for="card-cvc" class="checkout__label">CVC</label>
+                     <input type="text" id="card-cvc" class="checkout__input" placeholder="123" required>
+                  </div>
+               </div>
+               
+               <button type="submit" class="button checkout__button">Pay Now</button>
+            </form>
+         </div>
+         
+         <!-- PayPal Option -->
+         <div class="checkout__content" id="paypal-content" role="tabpanel">
+            <div class="checkout__paypal-container">
+               <p class="checkout__info">Click the button below to pay with PayPal</p>
+               <div id="paypal-button-container"></div>
+            </div>
+         </div>
+      </div>
+      
+      <!-- Checkout Success Message (initially hidden) -->
+      <div class="checkout__success" style="display: none;">
+         <i class="ri-checkbox-circle-line"></i>
+         <h4>Payment Successful!</h4>
+         <p>Your order has been placed successfully.</p>
+         <button class="button" id="continue-shopping">Continue Shopping</button>
+      </div>
+      
+      <!-- Close Button -->
+      <i class="ri-close-line checkout__close" id="checkout-close"></i>
+   </div>
+</div>
 </html>

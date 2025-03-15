@@ -2510,3 +2510,230 @@ body {
       transform: rotate(0deg);
   }
 }
+
+/* Add this to your existing CSS file */
+
+/*=============== CHECKOUT ===============*/
+.checkout {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  align-items: center;
+  justify-content: center;
+  background-color: hsla(0, 0%, 0%, 0.6);
+  padding: 2rem 1.5rem;
+  z-index: 100;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.4s, visibility 0.4s;
+}
+
+.checkout__container {
+  position: relative;
+  background-color: var(--container-color);
+  border-radius: 1.5rem;
+  padding: 2rem;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 20px hsla(0, 0%, 0%, 0.1);
+}
+
+.checkout__title {
+  font-size: var(--h2-font-size);
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.checkout__subtitle {
+  font-size: var(--normal-font-size);
+  font-weight: var(--font-semi-bold);
+  margin-bottom: 1rem;
+}
+
+.checkout__summary {
+  background-color: var(--body-color);
+  padding: 1.25rem;
+  border-radius: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.checkout__items {
+  margin-bottom: 1rem;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.checkout__item {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .5rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.checkout__item-img {
+  width: 50px;
+}
+
+.checkout__item-title {
+  font-size: var(--small-font-size);
+  margin-bottom: .25rem;
+  flex-grow: 1;
+}
+
+.checkout__item-price {
+  font-size: var(--small-font-size);
+  color: var(--first-color);
+}
+
+.checkout__item-quantity {
+  font-size: var(--smaller-font-size);
+  color: var(--text-color);
+}
+
+.checkout__total {
+  display: flex;
+  justify-content: space-between;
+  font-weight: var(--font-semi-bold);
+  padding-top: .5rem;
+}
+
+.checkout__payment {
+  margin-bottom: 1.5rem;
+}
+
+.checkout__tabs {
+  display: flex;
+  margin-bottom: 1.25rem;
+  gap: .5rem;
+}
+
+.checkout__tab {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  background-color: var(--body-color);
+  padding: .75rem 1.25rem;
+  border-radius: .75rem;
+  cursor: pointer;
+  font-size: var(--small-font-size);
+  border: 1px solid var(--border-color);
+  transition: background-color .3s;
+}
+
+.checkout__tab.active {
+  background-color: var(--first-color);
+  color: var(--white-color);
+}
+
+.checkout__content {
+  display: none;
+}
+
+.checkout__content.active {
+  display: block;
+}
+
+.checkout__form {
+  row-gap: 1rem;
+}
+
+.checkout__group {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+
+.checkout__label {
+  font-size: var(--smaller-font-size);
+  color: var(--title-color);
+  font-weight: var(--font-medium);
+}
+
+.checkout__input {
+  border: 1px solid var(--border-color);
+  background-color: var(--container-color);
+  padding: .75rem;
+  border-radius: .75rem;
+  font-family: var(--body-font);
+  font-size: var(--smaller-font-size);
+  color: var(--title-color);
+  outline: none;
+  transition: border-color .3s;
+}
+
+.checkout__input:focus {
+  border-color: var(--first-color);
+}
+
+.checkout__flex {
+  display: flex;
+  gap: 1rem;
+}
+
+.checkout__flex .checkout__group {
+  width: 50%;
+}
+
+.checkout__button {
+  width: 100%;
+  margin-top: .5rem;
+}
+
+.checkout__paypal-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.checkout__info {
+  font-size: var(--small-font-size);
+  color: var(--text-color);
+}
+
+.checkout__success {
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+.checkout__success i {
+  font-size: 3rem;
+  color: var(--green-color);
+  margin-bottom: 1rem;
+}
+
+.checkout__success h4 {
+  font-size: var(--h3-font-size);
+  margin-bottom: .5rem;
+}
+
+.checkout__success p {
+  margin-bottom: 1.5rem;
+  color: var(--text-color);
+}
+
+.checkout__close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  font-size: 1.5rem;
+  color: var(--title-color);
+  cursor: pointer;
+}
+
+/* Show checkout */
+.show-checkout {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Define a green color for success messages */
+:root {
+  --green-color: hsl(142, 76%, 36%);
+}

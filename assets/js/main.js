@@ -1164,7 +1164,8 @@ initializeAdminFeatures() {
       }
   }
 
-  updateCartUI() {
+  // In assets/js/main.js, modify the updateCartUI method
+updateCartUI() {
     const cartList = this.cartContent?.querySelector('.profile__cart');
     if (!cartList) return;
 
@@ -1198,7 +1199,20 @@ initializeAdminFeatures() {
                 <span>Total:</span>
                 <span class="cart__total">$${this.cart.getTotal().toFixed(2)}</span>
             </div>
+            <button class="button checkout-btn">Proceed to Checkout</button>
         `;
+        
+        // Add event listener to the checkout button
+        const checkoutBtn = cartList.querySelector('.checkout-btn');
+        if (checkoutBtn) {
+            checkoutBtn.addEventListener('click', function() {
+                const checkout = document.getElementById('checkout-content');
+                if (checkout) {
+                    checkout.classList.add('show-checkout');
+                    loadCheckoutItems();
+                }
+            });
+        }
     }
 }
 
@@ -1281,6 +1295,288 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+// Add this to your main.js file
+
+/*=============== CHECKOUT MODAL ===============*/
+const checkout = document.getElementById('checkout-content'),
+      checkoutClose = document.getElementById('checkout-close'),
+      continueButton = document.getElementById('continue-shopping'),
+      checkoutTabs = document.querySelectorAll('.checkout__tab'),
+      checkoutContents = document.querySelectorAll('.checkout__content')
+
+// Show checkout
+function showCheckout() {
+    if (checkout) {
+        checkout.classList.add('show-checkout')
+        // Load cart items into checkout summary
+        loadCheckoutItems()
+    }
+}
+
+// Add an event listener to "Add to Cart" buttons
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('add-to-cart') || 
+        e.target.parentElement.classList.contains('add-to-cart')) {
+        
+        const button = e.target.classList.contains('add-to-cart') ? 
+                      e.target : 
+                      e.target.parentElement;
+        
+        // Add the item to cart (this function should be defined elsewhere)
+        const bookId = button.getAttribute('data-book-id');
+        const bookTitle = button.getAttribute('data-book-title');
+        const bookPrice = button.getAttribute('data-book-price');
+        
+        addToCart(bookId, bookTitle, bookPrice);
+        
+        // Show a notification or update cart count
+        // This is just a placeholder - you should implement this based on your UI
+        alert(`${bookTitle} added to cart!`);
+    }
+})
+
+// Add a "Checkout" button to the cart tab in the profile
+document.addEventListener('DOMContentLoaded', function() {
+    const cartContent = document.getElementById('cart-content');
+    if (cartContent) {
+        const checkoutBtn = document.createElement('button');
+        checkoutBtn.className = 'button checkout-btn';
+        checkoutBtn.textContent = 'Proceed to Checkout';
+        checkoutBtn.addEventListener('click', showCheckout);
+        
+        // Find the cart-total div and insert the button after it
+        const cartTotal = cartContent.querySelector('.cart-total');
+        if (cartTotal) {
+            cartTotal.insertAdjacentElement('afterend', checkoutBtn);
+        } else {
+            cartContent.appendChild(checkoutBtn);
+        }
+    }
+});
+
+// Hide checkout
+function hideCheckout() {
+    if (checkout) {
+        checkout.classList.remove('show-checkout')
+    }
+}
+
+// Close checkout when the X button is clicked
+if (checkoutClose) {
+    checkoutClose.addEventListener('click', hideCheckout)
+}
+
+// Continue shopping button
+if (continueButton) {
+    continueButton.addEventListener('click', hideCheckout)
+}
+
+// Tab functionality
+function showContent(tabName) {
+    checkoutContents.forEach(content => {
+        content.classList.remove('active')
+    })
+    
+    checkoutTabs.forEach(tab => {
+        tab.classList.remove('active')
+    })
+    
+    document.querySelector(`#${tabName}-content`).classList.add('active')
+    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active')
+}
+
+checkoutTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+        showContent(tab.getAttribute('data-tab'))
+    })
+})
+
+/*=============== PAYMENT INTEGRATION ===============*/
+// Credit Card Form Handling
+const cardForm = document.getElementById('card-form');
+if (cardForm) {
+    cardForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Here you would typically send payment data to a payment processor
+        // For this demo, we'll just show a success message
+        processCardPayment();
+    });
+}
+
+// Simulate credit card payment processing
+function processCardPayment() {
+    const checkoutContainer = document.querySelector('.checkout__container');
+    const successMessage = document.querySelector('.checkout__success');
+    
+    // Show loading state
+    cardForm.innerHTML = '<div class="loading">Processing payment...</div>';
+    
+    // Simulate API call delay
+    setTimeout(() => {
+        // Hide all checkout content
+        document.querySelector('.checkout__summary').style.display = 'none';
+        document.querySelector('.checkout__payment').style.display = 'none';
+        
+        // Show success message
+        successMessage.style.display = 'block';
+        
+        // Clear cart
+        clearCart();
+    }, 2000);
+}
+
+// PayPal Integration
+function initPayPal() {
+    // This is where you would initialize PayPal SDK
+    // For demonstration purposes, we're adding a placeholder button
+    const paypalContainer = document.getElementById('paypal-button-container');
+    if (paypalContainer) {
+        const paypalBtn = document.createElement('button');
+        paypalBtn.className = 'button checkout__button';
+        paypalBtn.innerHTML = '<i class="ri-paypal-line"></i> Pay with PayPal';
+        paypalBtn.addEventListener('click', function() {
+            // Simulate PayPal payment
+            processPayPalPayment();
+        });
+        
+        paypalContainer.appendChild(paypalBtn);
+    }
+}
+
+// Simulate PayPal payment
+function processPayPalPayment() {
+    const checkoutContainer = document.querySelector('.checkout__container');
+    const successMessage = document.querySelector('.checkout__success');
+    const paypalContent = document.getElementById('paypal-content');
+    
+    // Show loading state
+    paypalContent.innerHTML = '<div class="loading">Redirecting to PayPal...</div>';
+    
+    // Simulate redirect and payment
+    setTimeout(() => {
+        // Hide all checkout content
+        document.querySelector('.checkout__summary').style.display = 'none';
+        document.querySelector('.checkout__payment').style.display = 'none';
+        
+        // Show success message
+        successMessage.style.display = 'block';
+        
+        // Clear cart
+        clearCart();
+    }, 2000);
+}
+
+// Function to load cart items into checkout summary
+function loadCheckoutItems() {
+    const checkoutItems = document.querySelector('.checkout__items');
+    const checkoutAmount = document.querySelector('.checkout__amount');
+    
+    if (!checkoutItems || !checkoutAmount) return;
+    
+    // Clear existing items
+    checkoutItems.innerHTML = '';
+    
+    // Get cart items from localStorage (you should implement this)
+    const cartItems = getCartItems() || [];
+    let total = 0;
+    
+    if (cartItems.length === 0) {
+        checkoutItems.innerHTML = '<p>Your cart is empty</p>';
+        checkoutAmount.textContent = '$0.00';
+        return;
+    }
+    
+    // Add each item to checkout summary
+    cartItems.forEach(item => {
+        const itemElement = document.createElement('div');
+        itemElement.className = 'checkout__item';
+        itemElement.innerHTML = `
+            <img src="assets/img/book-${item.id || '1'}.png" alt="${item.title}" class="checkout__item-img">
+            <div>
+                <h3 class="checkout__item-title">${item.title}</h3>
+                <span class="checkout__item-quantity">Qty: ${item.quantity}</span>
+            </div>
+            <span class="checkout__item-price">$${(item.price * item.quantity).toFixed(2)}</span>
+        `;
+        
+        checkoutItems.appendChild(itemElement);
+        total += item.price * item.quantity;
+    });
+    
+    checkoutAmount.textContent = `$${total.toFixed(2)}`;
+}
+
+// Placeholder functions for cart management - replace with your actual implementation
+function addToCart(id, title, price) {
+    // Get existing cart items
+    let cartItems = JSON.parse(localStorage.getItem('cartItems')) || [];
+    
+    // Check if item already exists
+    const existingItem = cartItems.find(item => item.id === id);
+    
+    if (existingItem) {
+        // Increase quantity
+        existingItem.quantity += 1;
+    } else {
+        // Add new item
+        cartItems.push({
+            id: id,
+            title: title,
+            price: parseFloat(price),
+            quantity: 1
+        });
+    }
+    
+    // Save updated cart
+    localStorage.setItem('cartItems', JSON.stringify(cartItems));
+}
+
+function getCartItems() {
+    return JSON.parse(localStorage.getItem('cartItems')) || [];
+}
+
+function clearCart() {
+    localStorage.removeItem('cartItems');
+}
+
+// Initialize PayPal when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    initPayPal();
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const checkout = document.getElementById('checkout-content');
+    const checkoutClose = document.getElementById('checkout-close');
+    const continueButton = document.getElementById('continue-shopping');
+    
+    if (checkoutClose) {
+        checkoutClose.addEventListener('click', function() {
+            if (checkout) {
+                checkout.classList.remove('show-checkout');
+                console.log('Checkout modal closed via X button');
+            }
+        });
+    }
+    
+    if (continueButton) {
+        continueButton.addEventListener('click', function() {
+            if (checkout) {
+                checkout.classList.remove('show-checkout');
+                console.log('Checkout modal closed via continue shopping');
+            }
+        });
+    }
+    
+    const style = document.createElement('style');
+    style.textContent = `
+        .show-checkout {
+            opacity: 1 !important;
+            visibility: visible !important;
+        }
+    `;
+    document.head.appendChild(style);
+});
 // Add toast styles
 const style = document.createElement('style');
 style.textContent = `
