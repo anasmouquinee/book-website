@@ -2692,6 +2692,11 @@ body {
   gap: 1rem;
 }
 
+#paypal-button-container {
+  width: 100%;
+  min-height: 45px;
+}
+
 .checkout__info {
   font-size: var(--small-font-size);
   color: var(--text-color);

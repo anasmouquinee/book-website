@@ -130,9 +130,9 @@ resetPassword(email, recoveryCode, newPassword) {
 
 /*=============== CART CONTROLLER ===============*/
 class CartController {
-  constructor() {
-      this.items = JSON.parse(localStorage.getItem('cart') || '[]');
-  }
+    constructor() {
+        this.items = JSON.parse(localStorage.getItem('cartItems') || '[]');
+    }
 
   addItem(item) {
       const existingItem = this.items.find(i => i.id === item.id);
@@ -166,8 +166,12 @@ class CartController {
   saveCart() {
     localStorage.setItem('cartItems', JSON.stringify(this.items));
 }
-
 }
+function getCartItems() {
+    return window.app.cart.items || [];
+}
+
+
 
 /*=============== UI CONTROLLER ===============*/
 class UIController {
@@ -1373,18 +1377,34 @@ if (continueButton) {
 
 // Tab functionality
 function showContent(tabName) {
-    checkoutContents.forEach(content => {
-        content.classList.remove('active')
-    })
+    console.log('Switching to tab:', tabName);
     
-    checkoutTabs.forEach(tab => {
-        tab.classList.remove('active')
-    })
+    const contents = document.querySelectorAll('.checkout__content');
+    contents.forEach(content => {
+        content.classList.remove('active');
+    });
     
-    document.querySelector(`#${tabName}-content`).classList.add('active')
-    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active')
+    const tabs = document.querySelectorAll('.checkout__tab');
+    tabs.forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    const selectedContent = document.getElementById(`${tabName}-content`);
+    const selectedTab = document.querySelector(`[data-tab="${tabName}"]`);
+    
+    if (selectedContent && selectedTab) {
+        selectedContent.classList.add('active');
+        selectedTab.classList.add('active');
+        
+        if (tabName === 'paypal') {
+            initPayPal();
+        }
+        
+        console.log('Tab switched successfully');
+    } else {
+        console.error('Could not find tab elements');
+    }
 }
-
 checkoutTabs.forEach(tab => {
     tab.addEventListener('click', () => {
         showContent(tab.getAttribute('data-tab'))
@@ -1428,20 +1448,27 @@ function processCardPayment() {
 
 // PayPal Integration
 function initPayPal() {
-    // This is where you would initialize PayPal SDK
-    // For demonstration purposes, we're adding a placeholder button
+    console.log('Initializing PayPal...');
     const paypalContainer = document.getElementById('paypal-button-container');
-    if (paypalContainer) {
-        const paypalBtn = document.createElement('button');
-        paypalBtn.className = 'button checkout__button';
-        paypalBtn.innerHTML = '<i class="ri-paypal-line"></i> Pay with PayPal';
-        paypalBtn.addEventListener('click', function() {
-            // Simulate PayPal payment
-            processPayPalPayment();
-        });
-        
-        paypalContainer.appendChild(paypalBtn);
+    
+    if (!paypalContainer) {
+        console.error('PayPal container not found');
+        return;
     }
+    
+    paypalContainer.innerHTML = '';
+    
+    console.log('PayPal container found, adding button');
+    const paypalBtn = document.createElement('button');
+    paypalBtn.className = 'button checkout__button';
+    paypalBtn.innerHTML = '<i class="ri-paypal-line"></i> Pay with PayPal';
+    paypalBtn.addEventListener('click', function() {
+        console.log('PayPal button clicked');
+        processPayPalPayment();
+    });
+    
+    paypalContainer.appendChild(paypalBtn);
+    console.log('PayPal button added');
 }
 
 // Simulate PayPal payment
@@ -1543,6 +1570,18 @@ function clearCart() {
 // Initialize PayPal when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     initPayPal();
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const checkoutTabs = document.querySelectorAll('.checkout__tab');
+    
+    checkoutTabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            const tabName = this.getAttribute('data-tab');
+            console.log('Tab clicked:', tabName);
+            showContent(tabName);
+        });
+    });
 });
 
 document.addEventListener('DOMContentLoaded', function() {
