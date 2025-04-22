@@ -37,7 +37,83 @@
   --z-fixed: 100;
 }
 
+.nav__logo {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  column-gap: .5rem;
+  color: var(--first-color);
+  font-weight: var(--font-medium);
+}
 
+.nav__logo i {
+  font-size: 1.25rem;
+}
+
+.logo__slogan {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: max-content;
+  background-color: var(--container-color);
+  color: var(--text-color);
+  font-size: var(--smaller-font-size);
+  font-style: italic;
+  padding: .75rem 1rem;
+  border-radius: .5rem;
+  box-shadow: 0 4px 20px hsla(230, 72%, 32%, .2);
+  opacity: 0;
+  visibility: hidden;
+  transition: all .3s ease;
+  z-index: 10;
+  font-weight: var(--font-regular);
+}
+
+.logo__slogan::before {
+  content: '\f10d'; 
+  font-family: 'remixicon';
+  margin-right: .25rem;
+  color: var(--first-color);
+}
+
+.logo__slogan::after {
+  content: '\f10e';
+  font-family: 'remixicon';
+  margin-left: .25rem;
+  color: var(--first-color);
+}
+
+.nav__logo:hover .logo__slogan {
+  opacity: 1;
+  visibility: visible;
+  top: 130%;
+}
+
+.logo__slogan::after {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 15px;
+  width: 15px;
+  height: 15px;
+  background-color: var(--container-color);
+  transform: rotate(45deg);
+  z-index: -1;
+}
+
+@media screen and (max-width: 767px) {
+  .logo__slogan {
+    width: 200px;
+    left: 0;
+    font-size: var(--smaller-font-size);
+  }
+}
+
+@media screen and (max-width: 350px) {
+  .nav__logo:hover .logo__slogan {
+    display: none; 
+  }
+}
 /*========== Responsive typography ==========*/
 @media screen and (min-width: 1150px) {
   :root {
