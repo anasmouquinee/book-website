@@ -1,0 +1,137 @@
+\reader.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <!--=============== FAVICON ===============-->
+  <link rel="shortcut icon" href="assets/img/favicon.png" type="image/x-icon">
+
+  <!--=============== REMIXICONS ===============-->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/3.5.0/remixicon.css">
+
+  <!--=============== CSS ===============-->
+  <link rel="stylesheet" href="assets/css/styles.css">
+  <link rel="stylesheet" href="assets/css/reader.css">
+  
+  <title>E-Book Reader | Kaelars</title>
+</head>
+<body>
+  <!--==================== HEADER ====================-->
+  <header class="header" id="header">
+    <nav class="nav container">
+      <a href="index.html" class="nav__logo">
+        <i class="ri-book-3-line"></i> Kaelars e-books
+      </a>
+      
+      <div class="nav__actions">
+        <!-- Theme button -->
+        <i class="ri-moon-line change-theme" id="theme-button"></i>
+      </div>
+    </nav>
+  </header>
+
+  <!--==================== READER ====================-->
+  <main class="reader">
+    <div class="reader__container container grid">
+      <!-- Book Content Column -->
+      <div class="reader__book">
+        <div class="reader__header">
+          <h1 class="reader__title">Book Title</h1>
+          <div class="reader__navigation">
+            <button class="reader__prev-page">
+              <i class="ri-arrow-left-line"></i>
+            </button>
+            <div class="reader__pagination">
+              <input type="number" class="reader__page-input" min="1" value="1">
+              <span class="reader__page-total">/ 250</span>
+            </div>
+            <button class="reader__next-page">
+              <i class="ri-arrow-right-line"></i>
+            </button>
+          </div>
+          <div class="reader__options">
+            <div class="reader__sync-option">
+              <input type="checkbox" id="sync-reading" checked>
+              <label for="sync-reading">Sync Pages</label>
+            </div>
+            <button id="share-btn" class="reader__share-btn">
+              <i class="ri-share-line"></i> Share
+            </button>
+          </div>
+        </div>
+        
+        <!-- This is where the book content will be loaded -->
+        <div class="reader__content"></div>
+      </div>
+      
+      <!-- Collaborative Features Column -->
+      <div class="reader__collaboration">
+        <div class="reader__tab-container">
+          <button class="reader__tab active" data-tab="comments">Comments</button>
+          <button class="reader__tab" data-tab="participants">Participants</button>
+        </div>
+        
+        <!-- Comments Tab -->
+        <div class="reader__tab-content active" id="comments-tab">
+          <div class="reader__comments"></div>
+          
+          <div class="reader__comment-form">
+            <textarea class="reader__comment-input" placeholder="Add a comment..."></textarea>
+            <button class="reader__send-comment">
+              <i class="ri-send-plane-line"></i>
+            </button>
+          </div>
+        </div>
+        
+        <!-- Participants Tab -->
+        <div class="reader__tab-content" id="participants-tab">
+          <div class="reader__participants-list"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+  
+  <!-- Share dialog -->
+  <div id="share-dialog" class="share-dialog">
+    <div class="share-dialog__content">
+      <h3>Share This Reading Room</h3>
+      <p>Invite others to read and discuss this book with you:</p>
+      <div class="share-dialog__input-group">
+        <input type="text" id="share-link" readonly>
+        <button id="copy-link">
+          <i class="ri-file-copy-line"></i>
+        </button>
+      </div>
+      <button id="share-close" class="share-dialog__close">Close</button>
+    </div>
+  </div>
+
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+
+<script>
+  // Your web app's Firebase configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyDpirWLijm_xTK6UxKZq0PoCYTaGl5AOs8",
+    authDomain: "kaelar-83c97.firebaseapp.com",
+    databaseURL: "https://kaelar-83c97-default-rtdb.firebaseio.com",
+    projectId: "kaelar-83c97",
+    storageBucket: "kaelar-83c97.appspot.com", 
+    messagingSenderId: "820595468759",
+    appId: "1:820595468759:web:fc8e03244c325b44560392",
+    measurementId: "G-38S0WZ2RJ0"
+  };
+  
+  // Initialize Firebase here instead of in reader.js
+  firebase.initializeApp(firebaseConfig);
+</script>
+
+<!--=============== MAIN JS ===============-->
+  
+<!--=============== READER JS ===============-->
+<script src="assets/js/reader.js"></script>
+</body>
+</html>
