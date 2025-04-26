@@ -1,0 +1,83 @@
+/* Admin VIP Management Styles */
+.vip-user {
+    background-color: rgba(255, 215, 0, 0.1); /* Subtle gold background for VIP users */
+  }
+  
+  .vip-status {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 0.85em;
+  }
+  
+  .vip-status.is-vip {
+    background-color: gold;
+    color: black;
+    font-weight: 500;
+  }
+  
+  .vip-status.not-vip {
+    background-color: #e0e0e0;
+    color: #666;
+  }
+  
+  .button--small {
+    padding: 3px 8px;
+    font-size: 0.85em;
+  }
+  
+  .button--danger {
+    background-color: #ff5252;
+  }
+  
+  .button--danger:hover {
+    background-color: #ff1a1a;
+  }
+  
+  .loading-message {
+    text-align: center;
+    padding: 10px;
+    color: #666;
+  }
+  
+  /* Table responsive styles */
+  .admin__users-container {
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  
+  .admin__table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+  }
+  
+  .admin__table th,
+  .admin__table td {
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+  }
+  
+  .admin__table th {
+    background-color: var(--first-color-lighter);
+    font-weight: 500;
+    color: var(--title-color);
+  }
+  
+  .admin__table tbody tr:hover {
+    background-color: rgba(0,0,0,0.02);
+  }
+  
+  .admin__search {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .admin__search-input {
+    flex: 1;
+    padding: 0.5rem;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 4px;
+  }

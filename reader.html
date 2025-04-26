@@ -1,138 +1,676 @@
-\reader.html -->
+website\reader.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reader - Kaelars eBooks</title>
   
-  <!--=============== FAVICON ===============-->
+  <!-- Favicon -->
   <link rel="shortcut icon" href="assets/img/favicon.png" type="image/x-icon">
-
-  <!--=============== REMIXICONS ===============-->
+  
+  <!-- Remixicons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/3.5.0/remixicon.css">
-
-  <!--=============== CSS ===============-->
+  
+  <!-- CSS -->
   <link rel="stylesheet" href="assets/css/styles.css">
   <link rel="stylesheet" href="assets/css/reader.css">
+  <link rel="stylesheet" href="assets/css/vip-features.css">
   
-  <title>E-Book Reader | Kaelars</title>
+  <style>
+    /* Reader-specific styles */
+    :root {
+      --sidebar-width: 300px;
+      --header-height: 60px;
+    }
+    
+    .reader {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background-color: var(--container-color);
+      overflow: hidden;
+    }
+    
+    .reader__header {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: var(--header-height);
+      position: relative;
+      z-index: 10;
+    }
+    
+    .reader__title {
+      font-size: var(--h3-font-size);
+      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 60%;
+    }
+    
+    .reader__controls {
+      display: flex;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
+    
+    .reader__button {
+      background: none;
+      border: none;
+      font-size: 1.25rem;
+      cursor: pointer;
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-color);
+      transition: background-color 0.3s;
+    }
+    
+    .reader__button:hover {
+      background-color: var(--container-color);
+    }
+    
+    .reader__container {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    .reader__content {
+      height: calc(100vh - var(--header-height) - 60px); /* Footer height is 60px */
+      overflow-y: auto;
+      padding: 2rem;
+      line-height: 1.6;
+    }
+    
+    .toggle-sidebar {
+      position: fixed;
+      bottom: 80px;
+      right: 20px;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: var(--first-color);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 90;
+    }
+    
+    .message-count {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      background-color: var(--first-color-dark);
+      color: white;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      font-size: 0.7rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .reader__footer {
+      padding: 1rem;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 60px;
+    }
+    
+    .reader__page-controls {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 1rem;
+    }
+    
+    .page-info {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+    }
+    
+    .navigation-button {
+      background-color: var(--first-color);
+      color: white;
+      border: none;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    
+    .navigation-button:hover {
+      background-color: var(--first-color-dark);
+    }
+    
+    .navigation-button[disabled] {
+      background-color: var(--border-color);
+      cursor: not-allowed;
+    }
+    
+    .reading-settings {
+      display: flex;
+      gap: 0.5rem;
+    }
+    
+    /* Room sidebar */
+    .room-sidebar {
+      position: fixed;
+      top: 0;
+      right: -100%;
+      width: var(--sidebar-width);
+      height: 100vh;
+      background-color: var(--body-color);
+      box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      transition: right 0.3s ease;
+    }
+    
+    .sidebar-open .room-sidebar {
+      right: 0;
+    }
+    
+    .room-header {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color);
+      position: relative;
+    }
+    
+    .room-header__title {
+      font-size: var(--h3-font-size);
+      margin-bottom: 0.25rem;
+    }
+    
+    .room-header__id {
+      font-size: var(--small-font-size);
+      color: var(--text-color-light);
+    }
+    
+    .room-close {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: var(--text-color);
+    }
+    
+    .room-users {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .room-users__title {
+      font-size: var(--normal-font-size);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .room-users__list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    
+    .room-users__list li {
+      display: flex;
+      align-items: center;
+      padding: 0.5rem 0;
+    }
+    
+    .user-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: #4caf50;
+      margin-right: 0.5rem;
+    }
+    
+    .current-user {
+      font-weight: 600;
+    }
+    
+    .room-chat {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 1rem;
+      overflow: hidden;
+    }
+    
+    .room-chat__title {
+      font-size: var(--normal-font-size);
+      margin-bottom: 0.5rem;
+    }
+    
+    .room-chat__messages {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 0.5rem;
+    }
+    
+    .room-chat__input {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    
+    .room-chat__input input {
+      flex: 1;
+      padding: 0.75rem;
+      border: 1px solid var(--border-color);
+      border-radius: 0.5rem;
+    }
+    
+    .room-chat__input button {
+      padding: 0.5rem 1rem;
+      background-color: var(--first-color);
+      color: white;
+      border: none;
+      border-radius: 0.5rem;
+      cursor: pointer;
+    }
+    
+    .chat-message {
+      margin-bottom: 1rem;
+      max-width: 80%;
+    }
+    
+    .chat-message.own-message {
+      margin-left: auto;
+    }
+    
+    .message-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: var(--small-font-size);
+      margin-bottom: 0.25rem;
+    }
+    
+    .message-sender {
+      font-weight: 500;
+    }
+    
+    .message-time {
+      color: var(--text-color-light);
+    }
+    
+    .message-content {
+      background-color: var(--container-color);
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+    }
+    
+    .own-message .message-content {
+      background-color: var(--first-color-lighter);
+      color: var(--first-color-dark);
+    }
+    
+    .room-invite {
+      padding: 1rem;
+      border-top: 1px solid var(--border-color);
+    }
+    
+    .room-invite button {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.75rem;
+      background-color: var(--container-color);
+      border: 1px solid var(--border-color);
+      border-radius: 0.5rem;
+      cursor: pointer;
+    }
+    
+    /* Join request styles */
+    .join-request {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .join-request__title {
+      font-size: var(--normal-font-size);
+      margin-bottom: 0.5rem;
+    }
+    
+    .join-request__message {
+      font-size: var(--small-font-size);
+      margin-bottom: 1rem;
+    }
+    
+    .join-request__actions {
+      display: flex;
+      justify-content: flex-end;
+    }
+    
+    .join-request__approve {
+      padding: 0.5rem 1rem;
+      background-color: var(--first-color);
+      color: white;
+      border: none;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    /* Room join requests for owner */
+    .room-requests {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color);
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    
+    .room-requests__title {
+      font-size: var(--normal-font-size);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .request-badge {
+      background-color: #f44336;
+      color: white;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      font-size: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .request-item {
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .request-item:last-child {
+      border-bottom: none;
+    }
+    
+    .request-item__header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+    
+    .request-item__name {
+      font-weight: 500;
+    }
+    
+    .request-item__time {
+      font-size: var(--small-font-size);
+      color: var(--text-color-light);
+    }
+    
+    .request-item__message {
+      font-size: var(--small-font-size);
+      margin-bottom: 0.5rem;
+    }
+    
+    .request-item__actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+    
+    .request-item__approve {
+      padding: 0.25rem 0.5rem;
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 0.25rem;
+      cursor: pointer;
+      font-size: var(--small-font-size);
+    }
+    
+    .request-item__reject {
+      padding: 0.25rem 0.5rem;
+      background-color: #f44336;
+      color: white;
+      border: none;
+      border-radius: 0.25rem;
+      cursor: pointer;
+      font-size: var(--small-font-size);
+    }
+    
+    .no-requests {
+      text-align: center;
+      padding: 1rem 0;
+      color: var(--text-color-light);
+      font-size: var(--small-font-size);
+    }
+    
+    /* Dark theme */
+    body.dark-theme .reader {
+      background-color: var(--body-color);
+    }
+    
+    body.dark-theme .reader__content {
+      color: var(--text-color);
+    }
+    
+    body.dark-theme .message-content {
+      background-color: #2d2d2d;
+    }
+    
+    /* Responsive design */
+    @media screen and (max-width: 768px) {
+      :root {
+        --sidebar-width: 85%;
+      }
+      
+      .reader__title {
+        font-size: var(--h3-font-size);
+        max-width: 50%;
+      }
+      
+      .reader__content {
+        padding: 1.5rem;
+        font-size: 1rem;
+      }
+      
+      .reader__controls {
+        gap: 0.25rem;
+      }
+      
+      .reader__button {
+        width: 2rem;
+        height: 2rem;
+        font-size: 1rem;
+      }
+      
+      .reader__footer {
+        flex-direction: column;
+        gap: 1rem;
+        height: auto;
+        padding: 0.75rem;
+      }
+      
+      .reader__page-controls {
+        width: 100%;
+        justify-content: space-between;
+      }
+      
+      .reading-settings {
+        width: 100%;
+        justify-content: center;
+      }
+      
+      .toggle-sidebar {
+        width: 36px;
+        height: 36px;
+        top: 70px;
+        right: 10px;
+      }
+      
+      .navigation-button {
+        width: 36px;
+        height: 36px;
+      }
+    }
+  </style>
 </head>
 <body>
-  <!--==================== HEADER ====================-->
-  <header class="header" id="header">
-    <nav class="nav container">
-      <a href="index.html" class="nav__logo">
-        <i class="ri-book-3-line"></i> Kaelars e-books
+  <div class="reader">
+    <!-- Header with book title and back button -->
+    <header class="reader__header">
+      <a href="index.html" class="reader__button">
+        <i class="ri-arrow-left-line"></i>
       </a>
-      
-      <div class="nav__actions">
-        <!-- Theme button -->
-        <i class="ri-moon-line change-theme" id="theme-button"></i>
+      <h1 class="reader__title">Book Title</h1>
+      <div class="reader__controls">
+        <button class="reader__button" id="theme-toggle">
+          <i class="ri-contrast-2-line"></i>
+        </button>
+        <button class="reader__button" id="bookmark">
+          <i class="ri-bookmark-line"></i>
+        </button>
       </div>
-    </nav>
-  </header>
-
-  <!--==================== READER ====================-->
-  <main class="reader">
-    <div class="reader__container container grid">
-      <!-- Book Content Column -->
-      <div class="reader__book">
-        <div class="reader__header">
-          <h1 class="reader__title">Book Title</h1>
-          <div class="reader__navigation">
-            <button class="reader__prev-page">
-              <i class="ri-arrow-left-line"></i>
-            </button>
-            <div class="reader__pagination">
-              <input type="number" class="reader__page-input" min="1" value="1">
-              <span class="reader__page-total">/ 250</span>
-            </div>
-            <button class="reader__next-page">
-              <i class="ri-arrow-right-line"></i>
-            </button>
-          </div>
-          <div class="reader__options">
-            <div class="reader__sync-option">
-              <input type="checkbox" id="sync-reading" checked>
-              <label for="sync-reading">Sync Pages</label>
-            </div>
-            <button id="share-btn" class="reader__share-btn">
-              <i class="ri-share-line"></i> Share
+    </header>
+    
+    <!-- Main content area -->
+    <div class="reader__container">
+      <!-- Book content -->
+      <div class="reader__content" id="reader-content">
+        <div class="loading">
+          <p>Loading book content...</p>
+        </div>
+      </div>
+      
+      <!-- Room sidebar toggle -->
+      <button class="toggle-sidebar" id="toggle-sidebar" style="display: none;">
+        <i class="ri-chat-3-line"></i>
+        <span class="message-count" id="message-count">0</span>
+      </button>
+      
+      <!-- Reading room sidebar -->
+      <div class="room-sidebar" id="room-sidebar">
+        <div class="room-header">
+          <h3 class="room-header__title" id="room-name">Reading Room</h3>
+          <p class="room-header__id" id="room-id">Room ID: ABC123</p>
+          <button class="room-close" id="close-sidebar">
+            <i class="ri-close-line"></i>
+          </button>
+        </div>
+        
+        <!-- Join request (for private rooms) -->
+        <div class="join-request" id="join-request" style="display: none;">
+          <h4 class="join-request__title">Request to Join</h4>
+          <p class="join-request__message">This is a private reading room. Please send a request to join.</p>
+          <div class="join-request__actions">
+            <button class="join-request__approve" id="send-join-request">
+              <i class="ri-send-plane-line"></i> Send Request
             </button>
           </div>
         </div>
         
-        <!-- This is where the book content will be loaded -->
-        <div class="reader__content"></div>
-      </div>
-      
-      <!-- Collaborative Features Column -->
-      <div class="reader__collaboration">
-        <div class="reader__tab-container">
-          <button class="reader__tab active" data-tab="comments">Comments</button>
-          <button class="reader__tab" data-tab="participants">Participants</button>
+        <!-- Room join requests (for room owners) -->
+        <div class="room-requests" id="room-requests" style="display: none;">
+          <h4 class="room-requests__title">
+            Join Requests
+            <span class="request-badge" id="request-count">0</span>
+          </h4>
+          <div id="requests-list">
+            <div class="no-requests">No pending requests</div>
+          </div>
         </div>
         
-        <!-- Comments Tab -->
-        <div class="reader__tab-content active" id="comments-tab">
-          <div class="reader__comments"></div>
-          
-          <div class="reader__comment-form">
-            <textarea class="reader__comment-input" placeholder="Add a comment..."></textarea>
-            <button class="reader__send-comment">
+        <!-- Room users list -->
+        <div class="room-users">
+          <h4 class="room-users__title">Active Readers</h4>
+          <ul class="room-users__list" id="room-users">
+            <li><span class="user-indicator"></span> Loading users...</li>
+          </ul>
+        </div>
+        
+        <!-- Chat area -->
+        <div class="room-chat">
+          <h4 class="room-chat__title">Live Chat</h4>
+          <div class="room-chat__messages" id="chat-messages">
+            <div class="no-messages">No messages yet</div>
+          </div>
+          <div class="room-chat__input">
+            <input type="text" id="chat-input" placeholder="Type a message...">
+            <button id="send-message">
               <i class="ri-send-plane-line"></i>
             </button>
           </div>
         </div>
         
-        <!-- Participants Tab -->
-        <div class="reader__tab-content" id="participants-tab">
-          <div class="reader__participants-list"></div>
+        <!-- Invite button -->
+        <div class="room-invite">
+          <button id="copy-invite-link">
+            <i class="ri-link"></i> Copy Invite Link
+          </button>
         </div>
       </div>
     </div>
-  </main>
-  
-  <!-- Share dialog -->
-  <div id="share-dialog" class="share-dialog">
-    <div class="share-dialog__content">
-      <h3>Share This Reading Room</h3>
-      <p>Invite others to read and discuss this book with you:</p>
-      <div class="share-dialog__input-group">
-        <input type="text" id="share-link" readonly>
-        <button id="copy-link">
-          <i class="ri-file-copy-line"></i>
+    
+    <!-- Footer with navigation controls -->
+    <footer class="reader__footer">
+      <div class="reader__page-controls">
+        <button id="prev-page" class="navigation-button" disabled>
+          <i class="ri-arrow-left-s-line"></i>
+        </button>
+        <div class="page-info">
+          Page <span id="current-page">1</span> of <span id="total-pages">--</span>
+        </div>
+        <button id="next-page" class="navigation-button">
+          <i class="ri-arrow-right-s-line"></i>
         </button>
       </div>
-      <button id="share-close" class="share-dialog__close">Close</button>
-    </div>
+      
+      <div class="reading-settings">
+        <button class="reader__button" id="font-decrease">
+          <i class="ri-text-spacing"></i>
+        </button>
+        <button class="reader__button" id="font-increase">
+          <i class="ri-font-size"></i>
+        </button>
+      </div>
+    </footer>
   </div>
-
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
-
-<script>
-  // Your web app's Firebase configuration
-  const firebaseConfig = {
-    apiKey: "AIzaSyDpirWLijm_xTK6UxKZq0PoCYTaGl5AOs8",
-    authDomain: "kaelar-83c97.firebaseapp.com",
-    databaseURL: "https://kaelar-83c97-default-rtdb.firebaseio.com",
-    projectId: "kaelar-83c97",
-    storageBucket: "kaelar-83c97.appspot.com", 
-    messagingSenderId: "820595468759",
-    appId: "1:820595468759:web:fc8e03244c325b44560392",
-    measurementId: "G-38S0WZ2RJ0"
-  };
   
-  // Initialize Firebase here instead of in reader.js
-  firebase.initializeApp(firebaseConfig);
-</script>
-
-<!--=============== MAIN JS ===============-->
-<script src="assets/js/main.js"></script>
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   
-<!--=============== READER JS ===============-->
-<script src="assets/js/reader.js"></script>
+  <!-- Reader JavaScript -->
+  <script src="assets/js/firebase-config.js"></script>
+  <script src="assets/js/reader.js"></script>
 </body>
 </html>

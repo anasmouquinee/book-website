@@ -15,7 +15,8 @@
 
       <!--=============== CSS ===============-->
       <link rel="stylesheet" href="assets/css/styles.css">
-
+      <!-- Add this before your main CSS -->
+<link rel="stylesheet" href="assets/css/vip-features.css">
       <title>Kaelars novel</title>
    </head>
    <body>
@@ -1093,41 +1094,36 @@
                <a href="#" class="footer__logo">
                   <i class="ri-book-3-line"></i> Kaelars e-Book
                </a>
-
+      
                <p class="footer__description">
                   Find and explore the best <br>
                   eBooks from all your <br>
                   favorite writers.
                </p>
             </div>
-
-
-
+      
             <div class="footer__socials">
-                  <h3 class="footer__title">Social</h3>
-
-                    <div class="footer__social">
-                      <a href="https://github.com/anasmouquinee" target="_blank" class="footer__social-link">
-                        <i class="ri-github-line"></i>
-                      </a>
-
-                     <a href="https://www.instagram.com/anasmouquine__/?hl=fr" target="_blank" class="footer__social-link">
-                        <i class="ri-instagram-line"></i>
-                     </a>
-
-                      <a href="https://www.linkedin.com/in/anas-mouqine-329207304/" target="_blank" class="footer__social-link">
-                        <i class="ri-linkedin-line"></i>
-                      </a>
-                  </div>
+               <h3 class="footer__title">Social</h3>
+               <div class="footer__social">
+                  <a href="https://github.com/anasmouquinee" target="_blank" class="footer__social-link">
+                     <i class="ri-github-line"></i>
+                  </a>
+      
+                  <a href="https://www.instagram.com/anasmouquine__/?hl=fr" target="_blank" class="footer__social-link">
+                     <i class="ri-instagram-line"></i>
+                  </a>
+      
+                  <a href="https://www.linkedin.com/in/anas-mouqine-329207304/" target="_blank" class="footer__social-link">
+                     <i class="ri-linkedin-line"></i>
+                  </a>
                </div>
             </div>
          </div>
-
+      
          <span class="footer__copy">
             &#169; All Rights Reserved By kaelars
          </span>
       </footer>
-
       <!--========== SCROLL UP ==========-->
       <a href="#" class="scrollup" id="scroll-up">
          <i class="ri-arrow-up-line"></i>
@@ -1138,9 +1134,25 @@
 
       <!--=============== SWIPER JS ===============-->
       <script src="assets/js/swiper-bundle.min.js"></script>
+<!-- Add these before your main.js -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
-      <!--=============== MAIN JS ===============-->
-      <script src="assets/js/main.js"></script>
+<!-- Firebase config -->
+<script src="assets/js/firebase-config.js"></script>
+
+<!-- Then your main.js -->
+<script src="assets/js/main.js"></script>
+
+<!-- VIP Manager -->
+<script src="assets/js/vip-manager.js"></script>
+
+<!-- Reading Room -->
+<script src="assets/js/reading-room.js"></script>
+
+<!-- Admin VIP Management -->
+<script src="assets/js/admin-vip.js"></script>
    </body>
    <!-- Add this before the closing </body> tag -->
 

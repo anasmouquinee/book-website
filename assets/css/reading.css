@@ -1,0 +1,200 @@
+.readingroom__container {
+    padding: 1rem;
+  }
+  
+  .readingroom__title {
+    margin-bottom: 1.5rem;
+  }
+  
+  .readingroom__options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  
+  .readingroom__create,
+  .readingroom__join {
+    padding: 1.5rem;
+    border-radius: 8px;
+    background-color: var(--container-color);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  }
+  
+  .readingroom__create h4,
+  .readingroom__join h4,
+  .readingroom__list h4 {
+    margin-bottom: 0.5rem;
+    color: var(--title-color);
+  }
+  
+  .readingroom__create p,
+  .readingroom__join p {
+    margin-bottom: 1rem;
+    color: var(--text-color);
+  }
+  
+  .readingroom__rooms {
+    display: grid;
+    gap: 1rem;
+  }
+  
+  .readingroom__room {
+    padding: 1rem;
+    border-radius: 8px;
+    background-color: var(--container-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  
+  .readingroom__room-info h5 {
+    margin-bottom: 0.25rem;
+    color: var(--title-color);
+  }
+  
+  .readingroom__room-info p {
+    margin-bottom: 0.25rem;
+    font-size: var(--smaller-font-size);
+  }
+  
+  .room-id {
+    font-family: monospace;
+    background: rgba(0,0,0,0.05);
+    padding: 2px 4px;
+    border-radius: 4px;
+  }
+  
+  .readingroom__room-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+  
+  .readingroom__empty {
+    text-align: center;
+    padding: 2rem;
+    background-color: var(--container-color);
+    border-radius: 8px;
+  }
+  
+  .readingroom__empty i {
+    font-size: 2.5rem;
+    color: var(--first-color-light);
+    margin-bottom: 1rem;
+  }
+  
+  .readingroom__empty p {
+    color: var(--text-color);
+  }
+  
+  .vip-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background-color: gold;
+    color: #000;
+    font-size: 0.6rem;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: bold;
+  }
+  
+  .vip-upgrade {
+    text-align: center;
+    padding: 2rem;
+  }
+  
+  .vip-upgrade i {
+    font-size: 3rem;
+    color: gold;
+    margin-bottom: 1rem;
+  }
+  
+  .vip-upgrade h3 {
+    margin-bottom: 0.5rem;
+  }
+  
+  .vip-upgrade p {
+    margin-bottom: 1.5rem;
+  }
+  
+  .vip-upgrade-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .vip-upgrade-content {
+    width: 90%;
+    max-width: 500px;
+    background-color: var(--body-color);
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  }
+  
+  .vip-upgrade-content h3 {
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+  
+  .vip-features {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1rem;
+    margin: 1.5rem 0;
+    text-align: center;
+  }
+  
+  .vip-feature i {
+    font-size: 1.5rem;
+    color: var(--first-color);
+    margin-bottom: 0.5rem;
+  }
+  
+  .vip-price {
+    text-align: center;
+    margin: 1.5rem 0;
+  }
+  
+  .vip-price .price {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--title-color);
+  }
+  
+  .vip-price .period {
+    font-size: 1rem;
+    color: var(--text-color);
+  }
+  
+  @media screen and (max-width: 768px) {
+    .readingroom__options {
+      grid-template-columns: 1fr;
+    }
+    
+    .readingroom__room {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    
+    .readingroom__room-info {
+      margin-bottom: 1rem;
+    }
+    
+    .readingroom__room-actions {
+      width: 100%;
+    }
+    
+    .vip-features {
+      grid-template-columns: 1fr;
+    }
+  }

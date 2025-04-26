@@ -1,1644 +1,1918 @@
 /*=============== UTILITIES ===============*/
 class DOMUtils {
-  static getElement(selector, required = true) {
+    static getElement(selector, required = true) {
       const element = document.querySelector(selector);
       if (!element && required) {
-          throw new Error(`Element ${selector} not found`);
+        throw new Error(`Element ${selector} not found`);
       }
       return element;
-  }
-
-  static getAllElements(selector) {
+    }
+  
+    static getAllElements(selector) {
       return [...document.querySelectorAll(selector)];
-  }
-
-  static showMessage(message, type = 'info') {
+    }
+  
+    static showMessage(message, type = 'info') {
       const toast = document.createElement('div');
       toast.className = `toast toast--${type}`;
       toast.textContent = message;
       document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 3000);
+      setTimeout(() => toast.classList.add('show'), 10);
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
   }
-}
-
-/*=============== AUTH CONTROLLER ===============*/
-class AuthController {
-  constructor() {
-    this.currentUser = JSON.parse(localStorage.getItem('currentUser'));
-    this.initializeAdmin();
-}
-
-generateRecoveryCode() {
-    return Math.random().toString(36).substring(2, 10).toUpperCase();
-}
-
-signup(userData) {
-    if (!userData.email || !userData.password || !userData.name) {
-        throw new Error('All fields are required');
+  
+  /*=============== FIREBASE INTEGRATION ===============*/
+  class FirebaseManager {
+    constructor() {
+      // Check if Firebase is already initialized
+      if (typeof firebase === 'undefined') {
+        console.error('Firebase SDK is not loaded');
+        DOMUtils.showMessage('Firebase SDK not loaded. Some features may not work.', 'error');
+        return;
+      }
+  
+      try {
+        // If Firebase is already initialized in reader.html, use that instance
+        if (firebase.apps.length) {
+          this.auth = firebase.auth();
+          this.db = firebase.database();
+          console.log('Using existing Firebase instance');
+        } else {
+          // Initialize Firebase with config
+          const firebaseConfig = {
+            apiKey: "AIzaSyDpirWLijm_xTK6UxKZq0PoCYTaGl5AOs8",
+            authDomain: "kaelar-83c97.firebaseapp.com",
+            databaseURL: "https://kaelar-83c97-default-rtdb.firebaseio.com",
+            projectId: "kaelar-83c97",
+            storageBucket: "kaelar-83c97.appspot.com", 
+            messagingSenderId: "820595468759",
+            appId: "1:820595468759:web:fc8e03244c325b44560392",
+            measurementId: "G-38S0WZ2RJ0"
+          };
+          firebase.initializeApp(firebaseConfig);
+          this.auth = firebase.auth();
+          this.db = firebase.database();
+          console.log('Firebase initialized');
+        }
+  
+        // Set auth state change listener
+        this.auth.onAuthStateChanged(user => {
+          console.log('Auth state changed:', user ? `User ${user.uid}` : 'No user');
+          if (user) {
+            this.getCurrentUserData(user.uid);
+          }
+        });
+      } catch (error) {
+        console.error('Firebase initialization error:', error);
+        DOMUtils.showMessage('Failed to initialize Firebase', 'error');
+      }
     }
-
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    if (users.some(user => user.email === userData.email)) {
-        throw new Error('Email already registered');
+  
+    async getCurrentUserData(uid) {
+      try {
+        const snapshot = await this.db.ref(`users/${uid}`).once('value');
+        return snapshot.val();
+      } catch (error) {
+        console.error('Error getting user data:', error);
+        return null;
+      }
     }
-
-    // Generate recovery code
-    const recoveryCode = this.generateRecoveryCode();
-    
-    // recovery code
-    users.push({
-        ...userData,
-        recoveryCode
-    });
-    
-    localStorage.setItem('users', JSON.stringify(users));
-    return recoveryCode; // Return code to show to user
-}
-resetPassword(email, recoveryCode, newPassword) {
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const userIndex = users.findIndex(u => 
-        u.email === email && 
-        u.recoveryCode === recoveryCode
-    );
-
-    if (userIndex === -1) {
-        throw new Error('Invalid email or recovery code');
+  
+    async saveUserData(uid, userData) {
+      try {
+        await this.db.ref(`users/${uid}`).update(userData);
+        console.log('User data saved');
+        return true;
+      } catch (error) {
+        console.error('Error saving user data:', error);
+        return false;
+      }
     }
-
-    // Update password
-    users[userIndex].password = newPassword;
-    // Generate new recovery code
-    users[userIndex].recoveryCode = this.generateRecoveryCode();
-    
-    localStorage.setItem('users', JSON.stringify(users));
-    return users[userIndex].recoveryCode; // Return new code
-}
-  initializeAdmin() {
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const adminExists = users.some(user => user.isAdmin);
-    
-    if (!adminExists) {
-        users.push({
+  
+    async getBooks() {
+      try {
+        const snapshot = await this.db.ref('books').once('value');
+        const books = [];
+        snapshot.forEach(childSnapshot => {
+          books.push({
+            id: childSnapshot.key,
+            ...childSnapshot.val()
+          });
+        });
+        return books;
+      } catch (error) {
+        console.error('Error getting books:', error);
+        return [];
+      }
+    }
+  
+    async saveBook(bookData) {
+      try {
+        const bookId = bookData.id || this.db.ref('books').push().key;
+        bookData.id = bookId;
+        await this.db.ref(`books/${bookId}`).set(bookData);
+        console.log('Book saved:', bookId);
+        return bookId;
+      } catch (error) {
+        console.error('Error saving book:', error);
+        throw error;
+      }
+    }
+  
+    async deleteBook(bookId) {
+      try {
+        await this.db.ref(`books/${bookId}`).remove();
+        console.log('Book deleted:', bookId);
+        return true;
+      } catch (error) {
+        console.error('Error deleting book:', error);
+        throw error;
+      }
+    }
+  
+    async getUserCart(uid) {
+      try {
+        const snapshot = await this.db.ref(`carts/${uid}`).once('value');
+        const cartItems = [];
+        snapshot.forEach(childSnapshot => {
+          cartItems.push({
+            id: childSnapshot.key,
+            ...childSnapshot.val()
+          });
+        });
+        return cartItems;
+      } catch (error) {
+        console.error('Error getting cart:', error);
+        return [];
+      }
+    }
+  
+    async addToCart(uid, item) {
+      try {
+        const cartRef = this.db.ref(`carts/${uid}`);
+        const snapshot = await cartRef.child(item.id).once('value');
+        
+        if (snapshot.exists()) {
+          // Item exists, update quantity
+          const currentQty = snapshot.val().quantity || 1;
+          await cartRef.child(item.id).update({
+            quantity: currentQty + 1
+          });
+        } else {
+          // New item
+          await cartRef.child(item.id).set({
+            ...item,
+            quantity: 1,
+            addedAt: firebase.database.ServerValue.TIMESTAMP
+          });
+        }
+        console.log('Item added to cart:', item.id);
+        return true;
+      } catch (error) {
+        console.error('Error adding to cart:', error);
+        throw error;
+      }
+    }
+  
+    async removeFromCart(uid, itemId) {
+      try {
+        await this.db.ref(`carts/${uid}/${itemId}`).remove();
+        console.log('Item removed from cart:', itemId);
+        return true;
+      } catch (error) {
+        console.error('Error removing from cart:', error);
+        throw error;
+      }
+    }
+  
+    async clearCart(uid) {
+      try {
+        await this.db.ref(`carts/${uid}`).remove();
+        console.log('Cart cleared');
+        return true;
+      } catch (error) {
+        console.error('Error clearing cart:', error);
+        throw error;
+      }
+    }
+  
+    async addToRecentlyViewed(uid, book) {
+      try {
+        const recentRef = this.db.ref(`recentlyViewed/${uid}`);
+        const newItemRef = recentRef.push();
+        await newItemRef.set({
+          ...book,
+          viewedAt: firebase.database.ServerValue.TIMESTAMP
+        });
+  
+        // Limit to 10 most recent
+        const snapshot = await recentRef.orderByChild('viewedAt').once('value');
+        const items = [];
+        snapshot.forEach(childSnapshot => {
+          items.push({
+            key: childSnapshot.key,
+            viewedAt: childSnapshot.val().viewedAt
+          });
+        });
+  
+        // Sort by viewedAt descending
+        items.sort((a, b) => b.viewedAt - a.viewedAt);
+  
+        // Remove excess items (keep only 10 most recent)
+        if (items.length > 10) {
+          for (let i = 10; i < items.length; i++) {
+            await recentRef.child(items[i].key).remove();
+          }
+        }
+  
+        return true;
+      } catch (error) {
+        console.error('Error adding to recently viewed:', error);
+        return false;
+      }
+    }
+  
+    async getRecentlyViewed(uid) {
+      try {
+        const snapshot = await this.db.ref(`recentlyViewed/${uid}`)
+          .orderByChild('viewedAt')
+          .limitToLast(10)
+          .once('value');
+        
+        const items = [];
+        snapshot.forEach(childSnapshot => {
+          items.push({
+            id: childSnapshot.val().id,
+            ...childSnapshot.val()
+          });
+        });
+        
+        // Sort by viewedAt in descending order (newest first)
+        return items.sort((a, b) => b.viewedAt - a.viewedAt);
+      } catch (error) {
+        console.error('Error getting recently viewed:', error);
+        return [];
+      }
+    }
+  
+    // Add an admin user if none exists yet
+    async ensureAdminExists() {
+      try {
+        const snapshot = await this.db.ref('users').orderByChild('isAdmin').equalTo(true).once('value');
+        if (snapshot.exists()) {
+          console.log('Admin user already exists');
+          return;
+        }
+  
+        // Create admin user if none exists
+        try {
+          // Create auth account
+          const userCredential = await this.auth.createUserWithEmailAndPassword('anasmouquine2@gmail.com', 'anasanas');
+          const uid = userCredential.user.uid;
+          
+          // Set admin data
+          await this.db.ref(`users/${uid}`).set({
             name: 'Admin',
             email: 'anasmouquine2@gmail.com',
-            password: 'anasanas',
-            isAdmin: true
-        });
-        localStorage.setItem('users', JSON.stringify(users));
-    }
-}
-  login(credentials) {
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
-      const user = users.find(u => 
-          u.email === credentials.email && 
-          u.password === credentials.password
-      );
-
-      if (!user) throw new Error('Invalid credentials');
-      
-      this.currentUser = user;
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      return user;
-  }
-
-  logout() {
-      this.currentUser = null;
-      localStorage.removeItem('currentUser');
-  }
-  updatePassword(currentPassword, newPassword) {
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const userIndex = users.findIndex(u => u.email === this.currentUser.email);
-    
-    if (userIndex === -1) {
-      throw new Error('User not found');
-    }
-
-    // Verify current password
-    if (users[userIndex].password !== currentPassword) {
-      throw new Error('Current password is incorrect');
-    }
-
-    // Update password
-    users[userIndex].password = newPassword;
-    localStorage.setItem('users', JSON.stringify(users));
-    
-    // Update current user
-    this.currentUser = users[userIndex];
-    localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
-  }
-}
-
-/*=============== CART CONTROLLER ===============*/
-class CartController {
-    constructor() {
-        this.items = JSON.parse(localStorage.getItem('cartItems') || '[]');
-    }
-
-  addItem(item) {
-      const existingItem = this.items.find(i => i.id === item.id);
-      if (existingItem) {
-          existingItem.quantity = (existingItem.quantity || 1) + 1;
-      } else {
-          this.items.push({ ...item, quantity: 1 });
+            isAdmin: true,
+            createdAt: firebase.database.ServerValue.TIMESTAMP
+          });
+          
+          console.log('Admin user created');
+        } catch (error) {
+          if (error.code === 'auth/email-already-in-use') {
+            // Email exists but user might not be set as admin, try to update
+            try {
+              const adminUser = await this.auth.signInWithEmailAndPassword('anasmouquine2@gmail.com', 'anasanas');
+              await this.db.ref(`users/${adminUser.user.uid}`).update({
+                isAdmin: true
+              });
+              console.log('Existing user updated to admin');
+            } catch (loginError) {
+              console.error('Could not set admin user:', loginError);
+            }
+          } else {
+            console.error('Could not create admin user:', error);
+          }
+        }
+      } catch (error) {
+        console.error('Error ensuring admin exists:', error);
       }
-      this.saveCart();
-      DOMUtils.showMessage('Item added to cart', 'success');
-  }
-
-  removeItem(itemId) {
-    if (!itemId) {
-        throw new Error('Item ID is required');
     }
-    
-    const index = this.items.findIndex(item => item.id === itemId);
-    if (index !== -1) {
-        this.items.splice(index, 1);
-        this.saveCart();
+  }
+  
+  /*=============== AUTH CONTROLLER ===============*/
+  class AuthController {
+    constructor(firebase) {
+      this.firebase = firebase;
+      this.auth = firebase.auth;
+      this.db = firebase.db;
+      this.currentUser = null;
+      
+      // Set auth state listener
+      this.auth.onAuthStateChanged(user => {
+        if (user) {
+          this.fetchUserProfile(user.uid);
+        } else {
+          this.currentUser = null;
+        }
+      });
+  
+      // Ensure admin user exists
+      this.firebase.ensureAdminExists();
+    }
+  
+    async fetchUserProfile(uid) {
+      try {
+        const snapshot = await this.db.ref(`users/${uid}`).once('value');
+        if (snapshot.exists()) {
+          this.currentUser = {
+            uid,
+            ...snapshot.val()
+          };
+          console.log('User profile fetched:', this.currentUser.name);
+        } else {
+          // User exists in Auth but not in Database
+          const user = this.auth.currentUser;
+          if (user) {
+            const userData = {
+              name: user.displayName || 'User',
+              email: user.email,
+              createdAt: firebase.database.ServerValue.TIMESTAMP
+            };
+            await this.db.ref(`users/${uid}`).set(userData);
+            this.currentUser = {
+              uid,
+              ...userData
+            };
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    }
+  
+    async login(email, password) {
+      try {
+        const userCredential = await this.auth.signInWithEmailAndPassword(email, password);
+        await this.fetchUserProfile(userCredential.user.uid);
+        return this.currentUser;
+      } catch (error) {
+        console.error('Login error:', error);
+        throw new Error(this.getAuthErrorMessage(error));
+      }
+    }
+  
+    async signup(userData) {
+      try {
+        // Create auth user
+        const userCredential = await this.auth.createUserWithEmailAndPassword(userData.email, userData.password);
+        const uid = userCredential.user.uid;
+        
+        // Generate recovery code
+        const recoveryCode = this.generateRecoveryCode();
+        
+        // Create user profile in database
+        await this.db.ref(`users/${uid}`).set({
+          name: userData.name,
+          email: userData.email,
+          recoveryCode,
+          createdAt: firebase.database.ServerValue.TIMESTAMP
+        });
+        
+        return recoveryCode;
+      } catch (error) {
+        console.error('Signup error:', error);
+        throw new Error(this.getAuthErrorMessage(error));
+      }
+    }
+  
+    async logout() {
+      try {
+        await this.auth.signOut();
+        this.currentUser = null;
         return true;
+      } catch (error) {
+        console.error('Logout error:', error);
+        throw error;
+      }
     }
-    return false;
-}
-
-  getTotal() {
-      return this.items.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
+  
+    async resetPassword(email, recoveryCode, newPassword) {
+      try {
+        // Find user with email and recovery code
+        const userSnapshot = await this.db.ref('users').orderByChild('email').equalTo(email).once('value');
+        
+        let userId = null;
+        let userFound = false;
+        
+        userSnapshot.forEach(childSnapshot => {
+          const userData = childSnapshot.val();
+          if (userData.recoveryCode === recoveryCode) {
+            userId = childSnapshot.key;
+            userFound = true;
+            return true; // Break forEach loop
+          }
+        });
+        
+        if (!userFound) {
+          throw new Error('Invalid email or recovery code');
+        }
+  
+        // Sign in anonymously to be able to use resetPassword
+        await this.auth.signInAnonymously();
+        
+        // Generate new recovery code
+        const newRecoveryCode = this.generateRecoveryCode();
+        
+        // Update database entry with new recovery code
+        await this.db.ref(`users/${userId}`).update({
+          recoveryCode: newRecoveryCode
+        });
+        
+        // Update Auth password
+        // This is tricky because we need admin privileges or the user to be logged in
+        // For this to work in a production app, you might need Firebase Functions
+        // For now, we'll require Firebase admin to be set up separately
+        
+        // In a real app, you would use Firebase Functions or similar to update the password
+        // For this demo, we'll just update the database
+        
+        return newRecoveryCode;
+      } catch (error) {
+        console.error('Reset password error:', error);
+        throw new Error(this.getAuthErrorMessage(error));
+      }
+    }
+  
+    async updatePassword(currentPassword, newPassword) {
+      try {
+        if (!this.auth.currentUser) {
+          throw new Error('You must be logged in to change your password');
+        }
+        
+        // Reauthenticate user
+        const credential = firebase.auth.EmailAuthProvider.credential(
+          this.auth.currentUser.email, 
+          currentPassword
+        );
+        
+        await this.auth.currentUser.reauthenticateWithCredential(credential);
+        
+        // Update password
+        await this.auth.currentUser.updatePassword(newPassword);
+        
+        return true;
+      } catch (error) {
+        console.error('Update password error:', error);
+        throw new Error(this.getAuthErrorMessage(error));
+      }
+    }
+  
+    generateRecoveryCode() {
+      return Math.random().toString(36).substring(2, 10).toUpperCase();
+    }
+  
+    getAuthErrorMessage(error) {
+      switch (error.code) {
+        case 'auth/user-not-found':
+          return 'No account found with this email';
+        case 'auth/wrong-password':
+          return 'Incorrect password';
+        case 'auth/email-already-in-use':
+          return 'Email already registered';
+        case 'auth/weak-password':
+          return 'Password is too weak';
+        case 'auth/invalid-email':
+          return 'Invalid email address';
+        case 'auth/requires-recent-login':
+          return 'Please log in again before updating your password';
+        default:
+          return error.message;
+      }
+    }
   }
-
-  saveCart() {
-    localStorage.setItem('cartItems', JSON.stringify(this.items));
-}
-}
-function getCartItems() {
-    return window.app.cart.items || [];
-}
-
-
-
-/*=============== UI CONTROLLER ===============*/
-class UIController {
+  
+  /*=============== CART CONTROLLER ===============*/
+  class CartController {
+    constructor(firebase, userId) {
+      this.firebase = firebase;
+      this.db = firebase.db;
+      this.userId = userId;
+      this.items = [];
+      this.listenToCartChanges();
+    }
+  
+    setUserId(userId) {
+      this.userId = userId;
+      if (userId) {
+        this.listenToCartChanges();
+      } else {
+        this.items = [];
+      }
+    }
+  
+    listenToCartChanges() {
+        if (!this.userId) return;
+        
+        // Stop previous listener if exists
+        if (this.cartListener) {
+          this.cartListener();
+        }
+        
+        // Set up real-time listener for cart changes
+        const cartRef = this.db.ref(`carts/${this.userId}`);
+        this.cartListener = cartRef.on('value', snapshot => {
+          this.items = [];
+          
+          // Add this null check
+          if (snapshot && snapshot.exists()) {
+            snapshot.forEach(childSnapshot => {
+              this.items.push({
+                id: childSnapshot.key,
+                ...childSnapshot.val()
+              });
+            });
+          }
+          
+          // Dispatch event that cart was updated
+          document.dispatchEvent(new CustomEvent('cart-updated'));
+        });
+      }
+  
+    async addItem(item) {
+      if (!this.userId) {
+        DOMUtils.showMessage('Please log in to add items to cart', 'error');
+        return false;
+      }
+      
+      try {
+        await this.firebase.addToCart(this.userId, item);
+        return true;
+      } catch (error) {
+        console.error('Error adding item to cart:', error);
+        DOMUtils.showMessage('Failed to add item to cart', 'error');
+        return false;
+      }
+    }
+  
+    async removeItem(itemId) {
+      if (!this.userId) return false;
+      
+      try {
+        await this.firebase.removeFromCart(this.userId, itemId);
+        return true;
+      } catch (error) {
+        console.error('Error removing item from cart:', error);
+        DOMUtils.showMessage('Failed to remove item from cart', 'error');
+        return false;
+      }
+    }
+  
+    getTotal() {
+      return this.items.reduce((sum, item) => {
+        return sum + (item.price * (item.quantity || 1));
+      }, 0);
+    }
+  
+    async clearCart() {
+      if (!this.userId) return false;
+      
+      try {
+        await this.firebase.clearCart(this.userId);
+        return true;
+      } catch (error) {
+        console.error('Error clearing cart:', error);
+        return false;
+      }
+    }
+  }
+  
+  /*=============== UI CONTROLLER ===============*/
+  class UIController {
     constructor() {
-        this.darkTheme = 'dark-theme';
-        this.iconTheme = 'ri-sun-line';
-        this.themeButton = document.getElementById('theme-button');
-        this.initializeTheme();
-        this.DEFAULT_BOOK_IMAGE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAADsQAAA7EB9YPtSQAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAL5SURBVHic7d0/iBxlHMfxz+/2FEUURRRBBCsrQYV0aaKFnXZpLBQE0cLOQtBCsBLUQhC0ULAQtEqlEBHBQkguVVI8JI1/IEFQFPz3vp+12Sf3srkke8/u7Ozs8nm/YLmd3Wd3f8/3O7M7OzsDSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZK0PKZNPdigL3VSrOBVovhEXPrS+rVnOmlaq9DB8vcAHwEPdtF0H/gy4KkUMm26OehBcI0YH2Dl5QUtkN9T4IEUON1k0z0IrkV8HQxvuhv4KspzMR1vsmm5IdJVngwGyqVX1wKHUsis7lsY0CceBQbMhUBDZkAgSYPAYJcWU7A/wv0anD5kdOooHPkLzp9bqs0OA14BOklwOILbGO1rkEfh/Ck4/Bt0MsFThAbC1QDJ6wDA4RG8EXBLm9ptwdEZuO8kvLUKN7WpXQYMeBkAuLuB9lIKLJb1Nqjrzbl1dTjaOeAcJM8BwxbwQoIz69WbagWObiP5HED9kQHDZEAgGRAkAwLVPFk1tIA8Qe0BFYDh5IxHgEAZECgDAmVAoAwIlAGBMiBQBgTKgEAZECgDAmVAoAwIlAGBMiBQBgTKgEAZECgDAmVAoAwIlAGBMiBQBgTKgEAZECgDAmVAoAwIlAGBMiBQBgTKgEAZEKhQrxCqBk3gqRnMlmsEpzGuD7iQAkfWeP6lkFvXdg64eJXb/l8urX/7AuVVwmfA+RQ4uwa3rsNbKTBZh1fXYXsdfoDFr+0csJ4CD6TAWArsTYG7UuDMBK6fwK+Ay66up73oyL4U+CPG0El8c/6VXf3a7gHHUuDnVbiQHV/bfeBjVoGfRnDnJfilvI7w8wQeicD3MyuBHc45oJu13QfeYwIfJzift62VcwD1mQGBMiBQBgTKgEAZECgDAmVAoAwIlAGBMiBQBgTKgEAZECgDAmVAoAwIlAGBMiBQBgTKgEAZECgDAmVAoAwIlAGBMiBQBgTKgEAZECgDAmVAoAwIlAGBMiBQBgTKgEAZECgDAmVAoAwIlAGBMiBQ/wI8C1tnOfj4WAAAAABJRU5ErkJggg=='; // Basic book icon in base64
-        this.handleCartActions = this.handleCartActions.bind(this);
-        this.themeButton = document.getElementById('theme-button');
-        this.initializeControllers();
+      this.darkTheme = 'dark-theme';
+      this.iconTheme = 'ri-sun-line';
+      this.DEFAULT_BOOK_IMAGE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAADsQAAA7EB9YPtSQAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAL5SURBVHic7d0/iBxlHMfxz+/2FEUURRRBBCsrQYV0aaKFnXZpLBQE0cLOQtBCsBLUQhC0ULAQtEqlEBHBQkguVVI8JI1/IEFQFPz3vp+12Sf3srkke8/u7Ozs8nm/YLmd3Wd3f8/3O7M7OzsDSZIkSZIkSZIkSZIk';
+      
+      // Initialize Firebase
+      this.firebase = new FirebaseManager();
+      
+      // Controllers
+      this.auth = new AuthController(this.firebase);
+      this.cart = null;
+      
+      // Initialize after a short delay to ensure Firebase is ready
+      setTimeout(() => {
         this.initializeElements();
-        this.initializeBooks();
         this.initializeEventListeners();
         this.initializeTheme();
         this.updateAuthUI();
-        this.updateBookDisplays();
-        this.initializeSwipers(); 
+        this.loadBooks();
+        this.initializeSwipers();
+      }, 500);
+  
+      // Set up auth state listener to update UI when auth state changes
+      this.firebase.auth.onAuthStateChanged(user => {
+        if (user) {
+          if (!this.cart) {
+            this.cart = new CartController(this.firebase, user.uid);
+          } else {
+            this.cart.setUserId(user.uid);
+          }
+          this.updateAuthUI();
+          this.loadRecentlyViewed();
+        } else {
+          if (this.cart) {
+            this.cart.setUserId(null);
+          }
+          this.updateAuthUI();
+        }
+      });
+  
+      // Listen for cart updates
+      document.addEventListener('cart-updated', () => {
+        this.updateCartUI();
+      });
     }
-
-    initializeSwipers() {
-        new Swiper('.featured__swiper', {
-            loop: true,
-            spaceBetween: 16,
-            slidesPerView: 'auto',
-            centeredSlides: true,
-            grabCursor: true,
-            autoplay: {
-                delay: 3000,
-                disableOnInteraction: false,
-            },
-            navigation: {
-                nextEl: '.swiper-button-next',
-                prevEl: '.swiper-button-prev',
-            }
+  
+    initializeElements() {
+      // Core elements
+      this.header = DOMUtils.getElement('#header', false);
+      this.themeButton = DOMUtils.getElement('#theme-button', false);
+      
+      // Search elements
+      this.searchButton = DOMUtils.getElement('#search-button', false);
+      this.searchContent = DOMUtils.getElement('#search-content', false);
+      this.searchClose = DOMUtils.getElement('#search-close', false);
+      this.searchForm = DOMUtils.getElement('.search__form', false);
+      this.searchInput = DOMUtils.getElement('.search__input', false);
+  
+      // Auth elements
+      this.loginButton = DOMUtils.getElement('#login-button', false);
+      this.loginContent = DOMUtils.getElement('#login-content', false);
+      this.loginForm = DOMUtils.getElement('.login__form', false);
+      this.loginClose = DOMUtils.getElement('#login-close', false);
+  
+      // Signup elements
+      this.signupContent = DOMUtils.getElement('#signup-content', false);
+      this.signupForm = DOMUtils.getElement('.signup__form', false);
+      this.signupClose = DOMUtils.getElement('#signup-close', false);
+      this.showSignupLink = DOMUtils.getElement('#show-signup', false);
+  
+      // Cart elements
+      this.cartButton = DOMUtils.getElement('#cart-button', false);
+      this.cartContent = DOMUtils.getElement('#cart-content', false);
+  
+      // Profile elements
+      this.profileContent = DOMUtils.getElement('#profile-content', false);
+      this.profileTabs = DOMUtils.getAllElements('.profile__tab');
+    }
+  
+    initializeEventListeners() {
+      // Auth listeners
+      this.loginForm?.addEventListener('submit', e => {
+        e.preventDefault();
+        this.handleLogin();
+      });
+      
+      this.signupForm?.addEventListener('submit', e => {
+        e.preventDefault();
+        this.handleSignup();
+      });
+      
+      // Recovery form
+      const recoveryForm = document.querySelector('.recovery__form');
+      recoveryForm?.addEventListener('submit', e => {
+        e.preventDefault();
+        this.handlePasswordReset();
+      });
+      
+      // Password change form
+      const passwordForm = document.querySelector('.profile__password-form');
+      passwordForm?.addEventListener('submit', e => {
+        e.preventDefault();
+        this.handlePasswordUpdate();
+      });
+      
+      // Search listeners
+      this.searchButton?.addEventListener('click', () => this.showModal('search'));
+      this.searchClose?.addEventListener('click', () => this.hideModal('search'));
+      this.searchForm?.addEventListener('submit', e => {
+        e.preventDefault();
+        this.handleSearch(e);
+      });
+      this.searchInput?.addEventListener('input', () => this.handleSearch());
+      
+      // Modal close listeners
+      this.loginClose?.addEventListener('click', () => this.hideModal('login'));
+      this.signupClose?.addEventListener('click', () => this.hideModal('signup'));
+      
+      document.querySelector('.recovery__close')?.addEventListener('click', () => {
+        this.hideModal('recovery');
+      });
+      
+      document.querySelector('.profile__close')?.addEventListener('click', () => {
+        document.querySelector('#profile-content')?.classList.remove('show-profile');
+      });
+  
+      // Switch between login/signup
+      this.showSignupLink?.addEventListener('click', e => {
+        e.preventDefault();
+        this.hideModal('login');
+        this.showModal('signup');
+      });
+      
+      document.querySelector('.switch-to-login')?.addEventListener('click', e => {
+        e.preventDefault();
+        this.hideModal('signup');
+        this.showModal('login');
+      });
+      
+      // Show recovery modal
+      document.getElementById('show-recovery')?.addEventListener('click', e => {
+        e.preventDefault();
+        this.hideModal('login');
+        this.showModal('recovery');
+      });
+  
+      // Profile tab switching
+      this.profileTabs?.forEach(tab => {
+        tab.addEventListener('click', () => {
+          const tabId = tab.dataset.tab;
+          this.switchProfileTab(tabId);
+          
+          if (tabId === 'admin') {
+            this.loadAdminBooks();
+          }
         });
-    }
-// Add this method to your UIController class
-handleSearch(e) {
-    e.preventDefault();
-    const query = this.searchInput.value.toLowerCase().trim();
-    const books = JSON.parse(localStorage.getItem('books') || '[]');
-    
-    // Filter books based on query
-    const results = books.filter(book => 
-        book.title.toLowerCase().includes(query) || 
-        book.description.toLowerCase().includes(query) ||
-        book.genre.toLowerCase().includes(query)
-    );
-
-    // Get search results container
-    const searchResults = DOMUtils.getElement('.search__results');
-    
-    // Update UI with results
-    if (query === '') {
-        searchResults.innerHTML = `
-            <div class="search__empty">
-                <i class="ri-search-line"></i>
-                <p>Type something to search</p>
-            </div>
-        `;
-        return;
-    }
-
-    if (results.length === 0) {
-        searchResults.innerHTML = `
-            <div class="search__empty">
-                <i class="ri-error-warning-line"></i>
-                <p>No results found</p>
-            </div>
-        `;
-        return;
-    }
-
-    searchResults.innerHTML = `
-        <div class="search__grid">
-            ${results.map(book => `
-                <article class="search__card" onclick="app.showBookDetails('${book.id}')">
-                    <img src="${book.image}" alt="${book.title}" class="search__img">
-                    <div class="search__data">
-                        <h3 class="search__title">${book.title}</h3>
-                        <span class="search__genre">${book.genre}</span>
-                        <span class="search__price">$${book.discountPrice || book.price}</span>
-                    </div>
-                </article>
-            `).join('')}
-        </div>
-    `;
-}
-    updateBookDisplays() {
-        const books = JSON.parse(localStorage.getItem('books') || '[]');
+      });
+  
+      // Add to cart and view details
+      document.addEventListener('click', e => {
+        // Handle add to cart
+        if (e.target.matches('.add-to-cart') || e.target.closest('.add-to-cart')) {
+          e.preventDefault();
+          const button = e.target.matches('.add-to-cart') ? e.target : e.target.closest('.add-to-cart');
+          const { bookId, bookTitle, bookPrice } = button.dataset;
+          
+          if (this.cart) {
+            this.cart.addItem({
+              id: bookId,
+              title: bookTitle,
+              price: parseFloat(bookPrice),
+              image: button.closest('article')?.querySelector('img')?.src || null
+            });
+            
+            DOMUtils.showMessage('Item added to cart', 'success');
+          } else {
+            DOMUtils.showMessage('Please log in to add items to cart', 'error');
+          }
+        }
         
-        // Map books with default image fallback
-        const booksWithImages = books.map(book => ({
-            ...book,
-            image: book.image || this.DEFAULT_BOOK_IMAGE
-        }));
+        // Handle book details
+        if (e.target.matches('.featured__actions button') || e.target.closest('.featured__actions button')) {
+          e.preventDefault();
+          const button = e.target.matches('button') ? e.target : e.target.closest('button');
+          const article = button.closest('article');
+          if (article) {
+            const bookId = article.dataset.bookId;
+            if (bookId) {
+              this.showBookDetails(bookId);
+            }
+          }
+        }
+      });
+  
+      // Cart actions
+      document.addEventListener('click', e => {
+        if (e.target.matches('.cart-item__remove') || e.target.closest('.cart-item__remove')) {
+          const cartItem = e.target.closest('.cart-item');
+          if (!cartItem) return;
+          
+          const itemId = cartItem.dataset.itemId;
+          if (confirm('Remove this item from cart?')) {
+            if (this.cart) {
+              this.cart.removeItem(itemId);
+            }
+          }
+        }
+      });
+  
+      // Add logout handler
+      document.querySelector('.profile__logout')?.addEventListener('click', () => {
+        if (confirm('Are you sure you want to logout?')) {
+          this.auth.logout().then(() => {
+            document.querySelector('#profile-content')?.classList.remove('show-profile');
+            this.updateAuthUI();
+            DOMUtils.showMessage('Logged out successfully', 'info');
+          }).catch(error => {
+            DOMUtils.showMessage('Logout failed: ' + error.message, 'error');
+          });
+        }
+      });
+  
+      // Admin handlers
+      document.querySelector('.admin__add-book')?.addEventListener('click', () => {
+        this.showBookForm();
+      });
+      
+      document.getElementById('book-form')?.addEventListener('submit', e => {
+        e.preventDefault();
+        this.handleBookSubmit(e);
+      });
+      
+      document.getElementById('cancel-book')?.addEventListener('click', () => {
+        this.hideBookForm();
+      });
+      
+      document.getElementById('admin-close')?.addEventListener('click', () => {
+        document.getElementById('admin-panel')?.classList.remove('show-panel');
+      });
+      
+      document.getElementById('book-image')?.addEventListener('change', e => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = e => {
+            const preview = document.getElementById('image-preview');
+            if (preview) {
+              preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+            }
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+  
+      // Theme toggle
+      this.themeButton?.addEventListener('click', () => this.toggleTheme());
+  
+      // Global escape key handler
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') this.hideAllModals();
+      });
+    }
+  
+    initializeTheme() {
+      // Get saved preferences
+      const savedTheme = localStorage.getItem('selected-theme');
+      
+      // Apply saved theme or default
+      if (savedTheme === 'dark') {
+        document.body.classList.add(this.darkTheme);
+        this.themeButton?.classList.remove('ri-moon-line');
+        this.themeButton?.classList.add(this.iconTheme);
+      }
+    }
+  
+    toggleTheme() {
+      // Toggle body class
+      document.body.classList.toggle(this.darkTheme);
+      
+      // Toggle icon
+      const isDark = document.body.classList.contains(this.darkTheme);
+      if (this.themeButton) {
+        this.themeButton.className = isDark ? this.iconTheme : 'ri-moon-line';
+      }
+      
+      // Save preference
+      localStorage.setItem('selected-theme', isDark ? 'dark' : 'light');
+    }
+  
+    initializeSwipers() {
+      if (typeof Swiper !== 'undefined') {
+        new Swiper('.featured__swiper', {
+          loop: true,
+          spaceBetween: 16,
+          slidesPerView: 'auto',
+          centeredSlides: true,
+          grabCursor: true,
+          autoplay: {
+            delay: 3000,
+            disableOnInteraction: false,
+          },
+          navigation: {
+            nextEl: '.swiper-button-next',
+            prevEl: '.swiper-button-prev',
+          }
+        });
         
-        this.updateFeaturedBooks(booksWithImages);
-        this.updateNewBooks(booksWithImages);
+        new Swiper('.new__swiper', {
+          loop: true,
+          spaceBetween: 16,
+          slidesPerView: 'auto'
+        });
+        
+        new Swiper('.testimonial__swiper', {
+          loop: true,
+          spaceBetween: 16,
+          pagination: {
+            el: '.swiper-pagination',
+            clickable: true,
+          },
+          breakpoints: {
+            640: {
+              slidesPerView: 2,
+            },
+            1024: {
+              slidesPerView: 3,
+            },
+          },
+        });
+      }
     }
-    
-    updateFeaturedBooks(books) {
-        const container = document.getElementById('featured-books');
+  
+    async loadBooks() {
+      try {
+        const books = await this.firebase.getBooks();
+        
+        if (books.length === 0) {
+          // Create default books if none exist
+          const defaultBooks = [
+            {
+              title: 'The Perfect Book',
+              genre: 'Fiction',
+              price: 29.99,
+              discountPrice: 14.99,
+              description: 'A sample book description',
+              image: 'assets/img/book-1.png',
+            },
+            {
+              title: 'Mystery Novel',
+              genre: 'Mystery',
+              price: 34.99,
+              discountPrice: 19.99,
+              description: 'Another sample book description',
+              image: 'assets/img/book-2.png',
+            }
+          ];
+          
+          for (const book of defaultBooks) {
+            await this.firebase.saveBook(book);
+          }
+          
+          // Load books again
+          return this.loadBooks();
+        }
+        
+        this.updateBookDisplays(books);
+        return books;
+      } catch (error) {
+        console.error('Error loading books:', error);
+        DOMUtils.showMessage('Failed to load books', 'error');
+        return [];
+      }
+    }
+  
+    async loadAdminBooks() {
+      try {
+        const books = await this.firebase.getBooks();
+        const container = document.querySelector('.admin__book-list');
+        
         if (!container) return;
-    
+        
+        if (books.length === 0) {
+          container.innerHTML = '<p class="admin__no-books">No books added yet</p>';
+          return;
+        }
+        
         container.innerHTML = books.map(book => `
-            <article class="featured__card swiper-slide">
-                <img src="${book.image}" alt="${book.title}" class="featured__img">
-                <h2 class="featured__title">${book.title}</h2>
-                <div class="featured__prices">
-                    ${book.discountPrice ? 
-                        `<span class="featured__discount">$${book.discountPrice}</span>
-                         <span class="featured__price">$${book.price}</span>` :
-                        `<span class="featured__discount">$${book.price}</span>`
-                    }
-                </div>
-                <button class="button add-to-cart" 
-                        data-book-id="${book.id}"
-                        data-book-title="${book.title}"
-                        data-book-price="${book.discountPrice || book.price}">
-                    Add To Cart
-                </button>
-                <div class="featured__actions">
-                    <button onclick="app.showBookDetails('${book.id}')">
-                        <i class="ri-eye-line"></i>
-                    </button>
-                    <button class="add-to-wishlist" data-book-id="${book.id}">
-                        <i class="ri-heart-3-line"></i>
-                    </button>
-                </div>
-            </article>
-        `).join('');
-    
-        // Reinitialize Swiper
-        this.initializeSwipers();
-    }
-
-    updateFeaturedBooks(books) {
-        const container = document.getElementById('featured-books');
-        if (!container) return;
-
-        container.innerHTML = books.map(book => `
-            <article class="featured__card swiper-slide">
-                <img src="${book.image}" alt="${book.title}" class="featured__img">
-                <h2 class="featured__title">${book.title}</h2>
-                <div class="featured__prices">
-                    ${book.discountPrice ? 
-                        `<span class="featured__discount">$${book.discountPrice}</span>
-                         <span class="featured__price">$${book.price}</span>` :
-                        `<span class="featured__discount">$${book.price}</span>`
-                    }
-                </div>
-                <button class="button add-to-cart" 
-                        data-book-id="${book.id}"
-                        data-book-title="${book.title}"
-                        data-book-price="${book.discountPrice || book.price}">
-                    Add To Cart
-                </button>
-                <div class="featured__actions">
-                    <button onclick="app.showBookDetails('${book.id}')">
-                        <i class="ri-eye-line"></i>
-                    </button>
-                    <button class="add-to-wishlist" data-book-id="${book.id}">
-                        <i class="ri-heart-3-line"></i>
-                    </button>
-                </div>
-            </article>
-        `).join('');
-
-        // Reinitialize Swiper
-        this.initializeSwipers();
-    }
-
-updateNewBooks(books) {
-    const container = document.getElementById('new-books');
-    if (!container) return;
-
-    // Sort by date to get newest books
-    const newBooks = [...books].sort((a, b) => 
-        new Date(b.addedDate) - new Date(a.addedDate)
-    ).slice(0, 10);
-
-    container.innerHTML = newBooks.map(book => `
-        <a href="#" class="new__card swiper-slide" onclick="app.showBookDetails('${book.id}'); return false;">
-            <img src="${book.image}" alt="${book.title}" class="new__img">
-            <div>
-                <h2 class="new__title">${book.title}</h2>
-                <div class="new__prices">
-                    ${book.discountPrice ? 
-                        `<span class="new__discount">$${book.discountPrice}</span>
-                         <span class="new__price">$${book.price}</span>` :
-                        `<span class="new__discount">$${book.price}</span>`
-                    }
-                </div>
-                <div class="new__stars">
-                    <i class="ri-star-fill"></i>
-                    <i class="ri-star-fill"></i>
-                    <i class="ri-star-fill"></i>
-                    <i class="ri-star-fill"></i>
-                    <i class="ri-star-half-fill"></i>
-                </div>
+          <div class="admin__book-item" data-book-id="${book.id}">
+            <img src="${book.image || 'assets/img/default-book.png'}" alt="${book.title}" class="admin__book-cover">
+            <div class="admin__book-info">
+              <h3 class="admin__book-title">${book.title}</h3>
+              <span class="admin__book-genre">${book.genre || 'General'}</span>
+              <div class="admin__book-price">
+                ${book.discountPrice ? 
+                  `<span class="discount">$${book.discountPrice}</span>
+                  <span class="original">$${book.price}</span>` : 
+                  `<span class="price">$${book.price}</span>`
+                }
+              </div>
+              <p class="admin__book-desc">${book.description || 'No description available'}</p>
             </div>
+            <div class="admin__book-actions">
+              <button class="button edit-book" onclick="app.editBook('${book.id}')">
+                <i class="ri-edit-line"></i>
+              </button>
+              <button class="button button--ghost delete-book" onclick="app.deleteBook('${book.id}')">
+                <i class="ri-delete-bin-line"></i>
+              </button>
+            </div>
+          </div>
+        `).join('');
+      } catch (error) {
+        console.error('Error loading admin books:', error);
+        DOMUtils.showMessage('Failed to load books', 'error');
+      }
+    }
+  
+    updateBookDisplays(books) {
+      if (!books) return;
+      
+      // Map books with default image fallback
+      const booksWithImages = books.map(book => ({
+        ...book,
+        image: book.image || this.DEFAULT_BOOK_IMAGE
+      }));
+      
+      this.updateFeaturedBooks(booksWithImages);
+      this.updateNewBooks(booksWithImages);
+    }
+  
+    updateFeaturedBooks(books) {
+      const container = document.getElementById('featured-books');
+      if (!container) return;
+  
+      container.innerHTML = books.map(book => `
+        <article class="featured__card swiper-slide" data-book-id="${book.id}">
+          <img src="${book.image}" alt="${book.title}" class="featured__img">
+          <h2 class="featured__title">${book.title}</h2>
+          <div class="featured__prices">
+            ${book.discountPrice ? 
+              `<span class="featured__discount">$${book.discountPrice}</span>
+               <span class="featured__price">$${book.price}</span>` :
+              `<span class="featured__discount">$${book.price}</span>`
+            }
+          </div>
+          <button class="button add-to-cart" 
+                  data-book-id="${book.id}"
+                  data-book-title="${book.title}"
+                  data-book-price="${book.discountPrice || book.price}">
+            Add To Cart
+          </button>
+          <div class="featured__actions">
+            <button onclick="app.showBookDetails('${book.id}')">
+              <i class="ri-eye-line"></i>
+            </button>
+            <button class="add-to-wishlist" data-book-id="${book.id}">
+              <i class="ri-heart-3-line"></i>
+            </button>
+          </div>
+        </article>
+      `).join('');
+    }
+  
+    updateNewBooks(books) {
+      const container = document.getElementById('new-books');
+      if (!container) return;
+  
+      // Sort by addedAt to get newest books
+      const sortedBooks = [...books].sort((a, b) => {
+        return new Date(b.addedAt || 0) - new Date(a.addedAt || 0);
+      }).slice(0, 10);
+  
+      container.innerHTML = sortedBooks.map(book => `
+        <a href="#" class="new__card swiper-slide" onclick="app.showBookDetails('${book.id}'); return false;" data-book-id="${book.id}">
+          <img src="${book.image}" alt="${book.title}" class="new__img">
+          <div>
+            <h2 class="new__title">${book.title}</h2>
+            <div class="new__prices">
+              ${book.discountPrice ? 
+                `<span class="new__discount">$${book.discountPrice}</span>
+                 <span class="new__price">$${book.price}</span>` :
+                `<span class="new__discount">$${book.price}</span>`
+              }
+            </div>
+            <div class="new__stars">
+              <i class="ri-star-fill"></i>
+              <i class="ri-star-fill"></i>
+              <i class="ri-star-fill"></i>
+              <i class="ri-star-fill"></i>
+              <i class="ri-star-half-fill"></i>
+            </div>
+          </div>
         </a>
-    `).join('');
-
-    // Reinitialize Swiper
-    new Swiper('.new__swiper', {
-        loop: true,
-        spaceBetween: 16,
-        slidesPerView: 'auto'
-    });
-}
-updateFeaturedBooks(books) {
-    const container = document.getElementById('featured-books');
-    if (!container) {
-        console.error('Featured books container not found');
-        return;
+      `).join('');
     }
-    console.log('Books to display:', books); // Debug log
-    // Rest of your code...
-}
-showBookDetails(bookId) {
-    const books = JSON.parse(localStorage.getItem('books') || '[]');
-    const book = books.find(b => b.id === bookId);
-    
-    if (!book) return;
-
-    const modal = document.createElement('div');
-    modal.className = 'book-details-modal';
-    modal.innerHTML = `
-        <div class="book-details__content">
-            <img src="${book.image}" alt="${book.title}" class="book-details__img">
+  
+    async showBookDetails(bookId) {
+      try {
+        // Get book from Firebase
+        const snapshot = await this.firebase.db.ref(`books/${bookId}`).once('value');
+        const book = snapshot.val();
+        
+        if (!book) return;
+        
+        // Add book to recently viewed if user is logged in
+        if (this.auth.currentUser) {
+          this.firebase.addToRecentlyViewed(this.auth.currentUser.uid, {
+            id: bookId,
+            title: book.title,
+            price: book.price,
+            discountPrice: book.discountPrice,
+            image: book.image
+          });
+        }
+  
+        // Create modal
+        const modal = document.createElement('div');
+        modal.className = 'book-details-modal';
+        modal.innerHTML = `
+          <div class="book-details__content">
+            <img src="${book.image || 'assets/img/default-book.png'}" alt="${book.title}" class="book-details__img">
             <h2 class="book-details__title">${book.title}</h2>
             <span class="book-details__genre">${book.genre || 'General'}</span>
             <p class="book-details__description">${book.description || 'No description available.'}</p>
             <div class="book-details__prices">
-                ${book.discountPrice ? 
-                    `<span class="book-details__discount">$${book.discountPrice}</span>
-                     <span class="book-details__price">$${book.price}</span>` :
-                    `<span class="book-details__price">$${book.price}</span>`
-                }
+              ${book.discountPrice ? 
+                `<span class="book-details__discount">$${book.discountPrice}</span>
+                 <span class="book-details__price">$${book.price}</span>` :
+                `<span class="book-details__price">$${book.price}</span>`
+              }
             </div>
             <button class="button add-to-cart"
-                    data-book-id="${book.id}"
+                    data-book-id="${bookId}"
                     data-book-title="${book.title}"
                     data-book-price="${book.discountPrice || book.price}">
-                Add To Cart
+              Add To Cart
             </button>
+            <a href="reader.html?id=${bookId}" class="button button--ghost" style="margin-top: 1rem;">
+              <i class="ri-book-open-line"></i> Read Sample
+            </a>
             <i class="ri-close-line book-details__close"></i>
-        </div>
-    `;
-
-    document.body.appendChild(modal);
-    
-    // Add close handler
-    modal.querySelector('.book-details__close').onclick = () => {
-        modal.remove();
-    };
-
-    // Add to recently viewed
-    this.addToRecentlyViewed(book);
-    this.updateRecentlyViewed();
-}
-
-updateRecentlyViewed() {
-    const container = document.getElementById('history-content');
-    if (!container) return;
-
-    const recentlyViewed = JSON.parse(localStorage.getItem('recentlyViewed') || '[]');
-    const historyList = container.querySelector('.profile__history');
-
-    if (recentlyViewed.length === 0) {
-        historyList.innerHTML = `
-            <div class="history-empty">
-                <i class="ri-history-line"></i>
-                <p>No recently viewed items</p>
-            </div>
+          </div>
         `;
-    } else {
-        historyList.innerHTML = recentlyViewed.map(book => `
-            <div class="history-item">
-                <img src="${book.image}" alt="${book.title}" class="history-item__img">
-                <div class="history-item__info">
-                    <h3 class="history-item__title">${book.title}</h3>
-                    <span class="history-item__price">$${book.discountPrice || book.price}</span>
-                    <span class="history-item__date">Viewed: ${new Date(book.viewedAt).toLocaleDateString()}</span>
-                </div>
-                <button class="button" onclick="app.showBookDetails('${book.id}')">
-                    <i class="ri-eye-line"></i>
-                </button>
+  
+        document.body.appendChild(modal);
+        
+        // Add close handler
+        modal.querySelector('.book-details__close').onclick = () => {
+          modal.remove();
+        };
+      } catch (error) {
+        console.error('Error showing book details:', error);
+        DOMUtils.showMessage('Failed to load book details', 'error');
+      }
+    }
+  
+    async loadRecentlyViewed() {
+      if (!this.auth.currentUser) return;
+      
+      try {
+        const recentlyViewed = await this.firebase.getRecentlyViewed(this.auth.currentUser.uid);
+        const container = document.getElementById('history-content');
+        if (!container) return;
+        
+        const historyList = container.querySelector('.profile__history');
+        if (!historyList) return;
+        
+        if (recentlyViewed.length === 0) {
+          historyList.innerHTML = `
+            <div class="history-empty">
+              <i class="ri-history-line"></i>
+              <p>No recently viewed items</p>
             </div>
-        `).join('');
+          `;
+        } else {
+          historyList.innerHTML = recentlyViewed.map(book => `
+            <div class="history-item">
+              <img src="${book.image || 'assets/img/default-book.png'}" alt="${book.title}" class="history-item__img">
+              <div class="history-item__info">
+                <h3 class="history-item__title">${book.title}</h3>
+                <span class="history-item__price">$${book.discountPrice || book.price}</span>
+                <span class="history-item__date">Viewed: ${new Date(book.viewedAt).toLocaleDateString()}</span>
+              </div>
+              <button class="button" onclick="app.showBookDetails('${book.id}')">
+                <i class="ri-eye-line"></i>
+              </button>
+            </div>
+          `).join('');
+        }
+      } catch (error) {
+        console.error('Error loading recently viewed:', error);
+      }
     }
-}
-
-addToRecentlyViewed(book) {
-    const recentlyViewed = JSON.parse(localStorage.getItem('recentlyViewed') || '[]');
-    const existingIndex = recentlyViewed.findIndex(b => b.id === book.id);
-    
-    if (existingIndex !== -1) {
-        recentlyViewed.splice(existingIndex, 1);
+  
+    updateCartUI() {
+        const cartList = this.cartContent?.querySelector('.profile__cart');
+        if (!cartList || !this.cart) return;
+        
+        if (this.cart.items.length === 0) {
+          cartList.innerHTML = `
+            <div class="cart-empty">
+              <i class="ri-shopping-cart-line"></i>
+              <p>Your cart is empty</p>
+            </div>
+            <div class="cart-total">
+              <span>Total:</span>
+              <span class="cart__total">$0.00</span>
+            </div>
+          `;
+        } else {
+          cartList.innerHTML = `
+            ${this.cart.items.map(item => `
+              <div class="cart-item" data-item-id="${item.id}">
+                <img src="${item.image || this.DEFAULT_BOOK_IMAGE}" alt="${item.title}" class="cart-item__img">
+                <div class="cart-item__info">
+                  <h3 class="cart-item__title">${item.title}</h3>
+                  <span class="cart-item__price">$${item.price}</span>
+                  <span class="cart-item__quantity">Quantity: ${item.quantity || 1}</span>
+                </div>
+                <button class="cart-item__remove">
+                  <i class="ri-delete-bin-line"></i>
+                </button>
+              </div>
+            `).join('')}
+            <div class="cart-total">
+              <span>Total:</span>
+              <span class="cart__total">$${this.cart.getTotal().toFixed(2)}</span>
+            </div>
+            <button class="button checkout-btn">Proceed to Checkout</button>
+          `;
+        
+        // Add event listener to the checkout button
+        const checkoutBtn = cartList.querySelector('.checkout-btn');
+        if (checkoutBtn) {
+          checkoutBtn.addEventListener('click', () => {
+            const checkout = document.getElementById('checkout-content');
+            if (checkout) {
+              checkout.classList.add('show-checkout');
+              // Load checkout items
+              this.loadCheckoutItems();
+            }
+          });
+        }
+      }
     }
-    
-    recentlyViewed.unshift({
-        ...book,
-        viewedAt: new Date().toISOString()
-    });
-
-    // Keep only last 10 items
-    if (recentlyViewed.length > 10) {
-        recentlyViewed.pop();
+  
+    loadCheckoutItems() {
+      if (!this.cart) return;
+      
+      const checkoutSummary = document.querySelector('.checkout__summary');
+      if (!checkoutSummary) return;
+      
+      if (this.cart.items.length === 0) {
+        checkoutSummary.innerHTML = `
+          <div class="checkout__empty">
+            <i class="ri-shopping-cart-line"></i>
+            <p>Your cart is empty</p>
+          </div>
+        `;
+        return;
+      }
+      
+      checkoutSummary.innerHTML = `
+        <h4 class="checkout__subtitle">Your Items</h4>
+        <div class="checkout__items">
+          ${this.cart.items.map(item => `
+            <div class="checkout__item">
+              <img src="${item.image || 'assets/img/default-book.png'}" alt="${item.title}" class="checkout__item-img">
+              <div class="checkout__item-info">
+                <h3 class="checkout__item-title">${item.title}</h3>
+                <span class="checkout__item-price">$${item.price}</span>
+                <span class="checkout__item-quantity">Quantity: ${item.quantity || 1}</span>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="checkout__total">
+          <span>Total:</span>
+          <span class="checkout__total-price">$${this.cart.getTotal().toFixed(2)}</span>
+        </div>
+      `;
     }
-
-    localStorage.setItem('recentlyViewed', JSON.stringify(recentlyViewed));
-}
-
-switchProfileTab(tabId) {
-    console.log('Switching to tab:', tabId);
-    
-    // Get all tabs and contents safely
-    const allTabs = Array.from(document.querySelectorAll('.profile__tab'));
-    const allContents = Array.from(document.querySelectorAll('.profile__content'));
-    
-    if (!allTabs.length || !allContents.length) {
+  
+    handleSearch() {
+      const query = this.searchInput?.value.toLowerCase().trim();
+      const searchResults = document.querySelector('.search__results');
+      
+      if (!query || !searchResults) {
+        if (searchResults) {
+          searchResults.innerHTML = `
+            <div class="search__empty">
+              <i class="ri-search-line"></i>
+              <p>Type something to search</p>
+            </div>
+          `;
+        }
+        return;
+      }
+      
+      // Search in Firebase
+      this.firebase.db.ref('books').orderByChild('title').once('value', snapshot => {
+        const results = [];
+        
+        snapshot.forEach(childSnapshot => {
+          const book = childSnapshot.val();
+          book.id = childSnapshot.key;
+          
+          if (book.title.toLowerCase().includes(query) || 
+              (book.description && book.description.toLowerCase().includes(query)) ||
+              (book.genre && book.genre.toLowerCase().includes(query))) {
+            results.push(book);
+          }
+        });
+        
+        if (results.length === 0) {
+          searchResults.innerHTML = `
+            <div class="search__empty">
+              <i class="ri-error-warning-line"></i>
+              <p>No results found</p>
+            </div>
+          `;
+          return;
+        }
+        
+        searchResults.innerHTML = `
+          <div class="search__grid">
+            ${results.map(book => `
+              <article class="search__card" onclick="app.showBookDetails('${book.id}')">
+                <img src="${book.image || 'assets/img/default-book.png'}" alt="${book.title}" class="search__img">
+                <div class="search__data">
+                  <h3 class="search__title">${book.title}</h3>
+                  <span class="search__genre">${book.genre || 'General'}</span>
+                  <span class="search__price">$${book.discountPrice || book.price}</span>
+                </div>
+              </article>
+            `).join('')}
+          </div>
+        `;
+      });
+    }
+  
+    switchProfileTab(tabId) {
+      // Get all tabs and contents safely
+      const allTabs = Array.from(document.querySelectorAll('.profile__tab'));
+      const allContents = Array.from(document.querySelectorAll('.profile__content'));
+      
+      if (!allTabs.length || !allContents.length) {
         console.warn('No tabs or content found');
         return;
-    }
-    
-    // Remove active class from all tabs and contents
-    allTabs.forEach(tab => {
+      }
+      
+      // Remove active class from all tabs and contents
+      allTabs.forEach(tab => {
         tab.classList?.remove('active');
         const content = document.getElementById(`${tab.dataset.tab}-content`);
         if (content) {
-            content.classList.remove('active');
-            content.classList.remove('fade-in');
+          content.classList.remove('active');
+          content.classList.remove('fade-in');
         }
-    });
-
-    // Add active class to selected tab and content
-    const selectedTab = document.querySelector(`[data-tab="${tabId}"]`);
-    const selectedContent = document.getElementById(`${tabId}-content`);
-    
-    if (selectedTab && selectedContent) {
+      });
+  
+      // Add active class to selected tab and content
+      const selectedTab = document.querySelector(`[data-tab="${tabId}"]`);
+      const selectedContent = document.getElementById(`${tabId}-content`);
+      
+      if (selectedTab && selectedContent) {
         selectedTab.classList.add('active');
         selectedContent.classList.add('active', 'fade-in');
         
         // Load books if admin tab
         if (tabId === 'admin') {
-            this.loadBooks();
+          this.loadAdminBooks();
         }
-    }
-}
-initializeAdminFeatures() {
-    console.log('Setting up admin event listeners'); // Debug log
-    
-    // Add Book button handler
-    const addBookBtn = document.querySelector('.admin__add-book');
-    if (addBookBtn) {
-        addBookBtn.addEventListener('click', () => {
-            console.log('Add book clicked'); // Debug log
-            this.showBookForm();
-        });
-    } else {
-        console.warn('Add book button not found');
-    }
-
-    // Book form submission handler
-    const bookForm = document.getElementById('book-form');
-    if (bookForm) {
-        bookForm.addEventListener('submit', (e) => {
-            console.log('Book form submitted'); // Debug log
-            e.preventDefault();
-            this.handleBookSubmit(e);
-        });
-    } else {
-        console.warn('Book form not found');
-    }
-
-    // Cancel button handler
-    const cancelBtn = document.getElementById('cancel-book');
-    if (cancelBtn) {
-        cancelBtn.addEventListener('click', () => {
-            console.log('Cancel button clicked'); // Debug log
-            this.hideBookForm();
-        });
-    } else {
-        console.warn('Cancel button not found');
-    }
-
-    // Load existing books
-    this.loadBooks();
-}
-
-hideAllModals() {
-  const modals = ['login', 'signup', 'profile', 'book-form'];
-  modals.forEach(type => {
-      const modal = document.getElementById(`${type}-content`) || 
-                   document.getElementById(`${type}-modal`);
-      if (modal) {
-          modal.classList.remove(`show-${type}`);
-          modal.classList.remove('show-modal');
+        
+        // Update cart UI if cart tab
+        if (tabId === 'cart') {
+          this.updateCartUI();
+        }
+        
+        // Load recently viewed if history tab
+        if (tabId === 'history') {
+          this.loadRecentlyViewed();
+        }
       }
-  });
-}
-showBookForm(bookData = null) {
-    const modal = document.getElementById('book-form-modal');
-    const form = document.getElementById('book-form');
-    
-    if (bookData) {
+    }
+  
+    showModal(type) {
+      const modal = document.getElementById(`${type}-content`);
+      if (modal) {
+        modal.classList.add(`show-${type}`);
+      }
+    }
+  
+    hideModal(type) {
+      const modal = document.getElementById(`${type}-content`);
+      if (modal) {
+        modal.classList.remove(`show-${type}`);
+      }
+    }
+  
+    hideAllModals() {
+        const modals = ['login', 'signup', 'profile', 'book-form', 'recovery', 'checkout'];
+        modals.forEach(type => {
+          this.hideModal(type);
+        });
+        
+        // Also hide any book-details modal
+        const detailsModal = document.querySelector('.book-details-modal');
+        if (detailsModal) {
+          detailsModal.remove();
+        }
+      }
+  
+    showBookForm(bookData = null) {
+      const modal = document.getElementById('book-form-modal');
+      const form = document.getElementById('book-form');
+      
+      if (!modal || !form) return;
+      
+      // Reset the form and preview
+      form.reset();
+      const preview = document.getElementById('image-preview');
+      if (preview) {
+        preview.innerHTML = '';
+      }
+      
+      if (bookData) {
         // Fill form for editing
-        form.elements['book-title'].value = bookData.title;
-        form.elements['book-price'].value = bookData.price;
-        form.elements['book-discount'].value = bookData.discountPrice;
-        form.elements['book-description'].value = bookData.description;
+        form.elements['book-title'].value = bookData.title || '';
+        form.elements['book-genre'].value = bookData.genre || '';
+        form.elements['book-price'].value = bookData.price || '';
+        form.elements['book-discount'].value = bookData.discountPrice || '';
+        form.elements['book-description'].value = bookData.description || '';
+        
+        // Set data-edit-id attribute for later use
         form.dataset.editId = bookData.id;
-    } else {
-        form.reset();
+        
+        // Show image preview
+        if (bookData.image && preview) {
+          preview.innerHTML = `<img src="${bookData.image}" alt="Preview">`;
+        }
+      } else {
+        // Clear edit ID
         delete form.dataset.editId;
+      }
+      
+      modal.classList.add('show-modal');
     }
-    
-    modal.classList.add('show-modal');
-}
-
-hideBookForm() {
-    document.getElementById('book-form-modal').classList.remove('show-modal');
-}
-
-async handleBookSubmit(e) {
-    e.preventDefault();
-    const form = e.target;
-    
-    // Get existing books or initialize empty array
-    let books = JSON.parse(localStorage.getItem('books') || '[]');
-    
-    // Handle image upload
-    const imageFile = form.elements['book-image'].files[0];
-    const imageUrl = await this.handleImageUpload(imageFile);
-    
-    const bookData = {
-        id: form.dataset.editId || Date.now().toString(),
-        title: form.elements['book-title'].value,
-        genre: form.elements['book-genre'].value,
-        price: parseFloat(form.elements['book-price'].value),
-        discountPrice: parseFloat(form.elements['book-discount'].value) || null,
-        description: form.elements['book-description'].value,
-        image: imageUrl,
-        addedDate: new Date().toISOString()
-    };
-
-    if (form.dataset.editId) {
-        // Update existing book
-        const index = books.findIndex(b => b.id === form.dataset.editId);
-        books[index] = { ...books[index], ...bookData };
-    } else {
-        // Add new book
-        books.push(bookData);
+  
+    hideBookForm() {
+      const modal = document.getElementById('book-form-modal');
+      if (modal) {
+        modal.classList.remove('show-modal');
+      }
     }
-
-    // Save to localStorage
-    localStorage.setItem('books', JSON.stringify(books));
-    
-    // Update UI
-    this.hideBookForm();
-    this.loadBooks();
-    this.updateBookDisplays(); // Update all book displays
-    DOMUtils.showMessage('Book saved successfully', 'success');
-}
-
-async handleImageUpload(file) {
-    return new Promise((resolve) => {
+  
+    async editBook(bookId) {
+      try {
+        const snapshot = await this.firebase.db.ref(`books/${bookId}`).once('value');
+        const book = snapshot.val();
+        if (book) {
+          book.id = bookId;
+          this.showBookForm(book);
+        }
+      } catch (error) {
+        console.error('Error getting book for editing:', error);
+        DOMUtils.showMessage('Failed to load book', 'error');
+      }
+    }
+  
+    async deleteBook(bookId) {
+      if (confirm('Are you sure you want to delete this book?')) {
+        try {
+          await this.firebase.deleteBook(bookId);
+          DOMUtils.showMessage('Book deleted successfully', 'success');
+          
+          // Reload books
+          this.loadAdminBooks();
+          this.loadBooks();
+        } catch (error) {
+          console.error('Error deleting book:', error);
+          DOMUtils.showMessage('Failed to delete book', 'error');
+        }
+      }
+    }
+  
+    async handleBookSubmit(e) {
+      const form = e.target;
+      const bookId = form.dataset.editId;
+      
+      try {
+        // Get image file
+        const imageFile = form.elements['book-image'].files[0];
+        let imageUrl = null;
+        
+        if (imageFile) {
+          // Convert image to data URL
+          imageUrl = await this.handleImageUpload(imageFile);
+        } else if (bookId) {
+          // If editing and no new image provided, keep existing image
+          const snapshot = await this.firebase.db.ref(`books/${bookId}`).once('value');
+          imageUrl = snapshot.val()?.image || null;
+        }
+        
+        // Prepare book data
+        const bookData = {
+          title: form.elements['book-title'].value,
+          genre: form.elements['book-genre'].value,
+          price: parseFloat(form.elements['book-price'].value) || 0,
+          discountPrice: parseFloat(form.elements['book-discount'].value) || null,
+          description: form.elements['book-description'].value,
+          image: imageUrl,
+          addedAt: firebase.database.ServerValue.TIMESTAMP,
+          updatedAt: firebase.database.ServerValue.TIMESTAMP
+        };
+        
+        if (bookId) {
+          // Update existing book
+          bookData.id = bookId;
+          await this.firebase.saveBook(bookData);
+        } else {
+          // Add new book
+          await this.firebase.saveBook(bookData);
+        }
+        
+        // Reset form and close modal
+        form.reset();
+        this.hideBookForm();
+        
+        // Reload books
+        this.loadAdminBooks();
+        this.loadBooks();
+        
+        DOMUtils.showMessage('Book saved successfully', 'success');
+      } catch (error) {
+        console.error('Error saving book:', error);
+        DOMUtils.showMessage('Failed to save book', 'error');
+      }
+    }
+  
+    async handleImageUpload(file) {
+      return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = (e) => {
-            resolve(e.target.result); // Store image as base64
+        reader.onload = e => {
+          resolve(e.target.result);
+        };
+        reader.onerror = e => {
+          reject(e);
         };
         reader.readAsDataURL(file);
-    });
-}
-
-loadBooks() {
-    console.log('Loading books'); // Debug log
-    const books = JSON.parse(localStorage.getItem('books') || '[]');
-    const container = document.querySelector('.admin__book-list');
-    
-    if (!container) {
-        console.warn('Book list container not found');
-        return;
+      });
     }
-
-    if (books.length === 0) {
-        container.innerHTML = '<p class="admin__no-books">No books added yet</p>';
-        return;
-    }
-
-    container.innerHTML = books.map(book => `
-        <div class="admin__book-item">
-            <img src="${book.image}" alt="${book.title}" class="admin__book-cover">
-            <div class="admin__book-info">
-                <h3 class="admin__book-title">${book.title}</h3>
-                <span class="admin__book-genre">${book.genre}</span>
-                <div class="admin__book-price">
-                    ${book.discountPrice ? 
-                        `<span class="discount">$${book.discountPrice}</span> ` : 
-                        ''}
-                    <span class="price">$${book.price}</span>
-                </div>
-                <p class="admin__book-desc">${book.description}</p>
-            </div>
-            <div class="admin__book-actions">
-                <button class="button" onclick="app.editBook('${book.id}')">
-                    <i class="ri-edit-line"></i>
-                </button>
-                <button class="button button--ghost" onclick="app.deleteBook('${book.id}')">
-                    <i class="ri-delete-bin-line"></i>
-                </button>
-            </div>
-        </div>
-    `).join('');
-
-    // Update other book displays
-    this.updateBookDisplays();
-}
-
-editBook(bookId) {
-    const books = JSON.parse(localStorage.getItem('books') || '[]');
-    const book = books.find(b => b.id === bookId);
-    if (book) {
-        this.showBookForm(book);
-    }
-}
-
-deleteBook(bookId) {
-    if (confirm('Are you sure you want to delete this book?')) {
-        const books = JSON.parse(localStorage.getItem('books') || '[]');
-        const filtered = books.filter(b => b.id !== bookId);
-        localStorage.setItem('books', JSON.stringify(filtered));
-        this.loadBooks();
-        this.updateBookDisplays(); 
-        DOMUtils.showMessage('Book deleted successfully', 'success');
-    }
-}
-initializeBooks() {
-    const books = JSON.parse(localStorage.getItem('books') || '[]');
-    if (books.length === 0) {
-        // Add default books
-        const defaultBooks = [
-            {
-                id: '1',
-                title: 'The Perfect Book',
-                genre: 'Fiction',
-                price: 29.99,
-                discountPrice: 14.99,
-                description: 'A sample book description',
-                image: 'assets/img/book-1.png',
-                addedDate: new Date().toISOString()
-            },
-            {
-                id: '2',
-                title: 'Mystery Novel',
-                genre: 'Mystery',
-                price: 34.99,
-                discountPrice: 19.99,
-                description: 'Another sample book description',
-                image: 'assets/img/book-2.png',
-                addedDate: new Date().toISOString()
-            }
-        ];
-        localStorage.setItem('books', JSON.stringify(defaultBooks));
-    }
-    this.updateBookDisplays();
-}
-
-
-  initializeControllers() {
-      this.auth = new AuthController();
-      this.cart = new CartController();
-  }
-
-  initializeElements() {
-      // Core elements
-      this.header = DOMUtils.getElement('#header');
-      this.themeButton = DOMUtils.getElement('#theme-button');
-      // Search elements
-      this.searchButton = DOMUtils.getElement('#search-button');
-      this.searchContent = DOMUtils.getElement('#search-content');
-      this.searchClose = DOMUtils.getElement('#search-close');
-      this.searchForm = DOMUtils.getElement('.search__form');
-      this.searchInput = DOMUtils.getElement('.search__input');
   
-      // Auth elements
-      this.loginButton = DOMUtils.getElement('#login-button');
-      this.loginContent = DOMUtils.getElement('#login-content');
-      this.loginForm = DOMUtils.getElement('.login__form');
-      this.loginClose = DOMUtils.getElement('#login-close');
-
-      // Signup elements
-      this.signupContent = DOMUtils.getElement('#signup-content');
-      this.signupForm = DOMUtils.getElement('.signup__form');
-      this.signupClose = DOMUtils.getElement('#signup-close');
-      this.showSignupLink = DOMUtils.getElement('#show-signup');
-
-      // Cart elements
-      this.cartButton = DOMUtils.getElement('#cart-button', false);
-      this.cartContent = DOMUtils.getElement('#cart-content', false);
-
-      // Profile elements
-      this.profileContent = DOMUtils.getElement('#profile-content', false);
-      this.profileTabs = DOMUtils.getAllElements('.profile__tab');
-  }
-
-  initializeEventListeners() {
-    //pass handler
-    const passwordForm = document.querySelector('.profile__password-form');
-    passwordForm?.addEventListener('submit', (e) => this.handlePasswordUpdate(e));
-      // Auth listeners
-      this.loginForm?.addEventListener('submit', e => this.handleLogin(e));
-      this.signupForm?.addEventListener('submit', e => this.handleSignup(e));
-             // Search listeners
-             this.searchButton?.addEventListener('click', () => this.showModal('search'));
-             this.searchClose?.addEventListener('click', () => this.hideModal('search'));
-             this.searchForm?.addEventListener('submit', (e) => this.handleSearch(e));
-             this.searchInput?.addEventListener('input', (e) => this.handleSearch(e));
-         
-      // Modal close listeners
-      this.loginClose?.addEventListener('click', () => this.hideModal('login'));
-      this.signupClose?.addEventListener('click', () => this.hideModal('signup'));
-          // Profile tab switching
-    this.profileTabs?.forEach(tab => {
-        tab.addEventListener('click', () => {
-            const tabId = tab.dataset.tab;
-            this.switchProfileTab(tabId); 
+    updateAuthUI() {
+        if (!this.loginButton) return;
+        
+        const user = this.auth.currentUser;
+        console.log('Updating UI with user:', user); // Add this debug line
+        
+        if (user) {
+          // Update login button
+          this.loginButton.innerHTML = `<i class="ri-user-line"></i> ${user.name || 'User'}`;
+          this.loginButton.onclick = () => {
+            // Show profile immediately when clicked
+            if (this.profileContent) {
+              this.profileContent.classList.add('show-profile');
+              
+              // Update profile info fields
+              const profileName = document.getElementById('profile-name');
+              const profileEmail = document.getElementById('profile-email');
+              
+              if (profileName && profileEmail) {
+                profileName.value = user.name || '';
+                profileEmail.value = user.email || '';
+              }
+              
+              // Show admin panel if admin
+              if (user.isAdmin) {
+                const adminTab = document.querySelector('[data-tab="admin"]');
+                if (adminTab) adminTab.style.display = 'block';
+                
+                // Also show admin panel
+                const adminPanel = document.getElementById('admin-panel');
+                if (adminPanel) {
+                  adminPanel.classList.add('show-panel');
+                  this.loadAdminBooks();
+                }
+              }
+            }
+          };
+        } else {
+        // Update for logged out state
+        this.loginButton.innerHTML = `<i class="ri-user-line"></i>`;
+        this.loginButton.onclick = () => this.showModal('login');
+        
+        // Hide admin tab if it exists
+        const adminTab = document.querySelector('[data-tab="admin"]');
+        if (adminTab) {
+          adminTab.style.display = 'none';
+        }
+      }
+    }
+  
+    async handleLogin() {
+        try {
+          const email = document.getElementById('login-email').value;
+          const password = document.getElementById('login-pass').value;
+          
+          console.log('Login attempt with:', email);
+          
+          if (!email || !password) {
+            DOMUtils.showMessage('Please enter both email and password', 'error');
+            return;
+          }
+          
+          const user = await this.auth.login(email, password);
+          console.log('Login successful, user data:', user);
+          
+          // Success
+          DOMUtils.showMessage(`Welcome, ${user.name || 'User'}!`, 'success');
+          this.hideModal('login');
+          this.updateAuthUI(); // Add this to ensure UI is updated
+          
+          // Reset form
+          document.getElementById('login-email').value = '';
+          document.getElementById('login-pass').value = '';
+          
+          return user;
+        } catch (error) {
+          console.error('Detailed login error:', error);
+          DOMUtils.showMessage(error.message, 'error');
+          return null;
+        }
+      }
+  
+    async handleSignup() {
+      try {
+        const name = document.getElementById('signup-name').value;
+        const email = document.getElementById('signup-email').value;
+        const password = document.getElementById('signup-pass').value;
+        const confirm = document.getElementById('signup-confirm').value;
+        
+        if (!name || !email || !password || !confirm) {
+          DOMUtils.showMessage('Please fill in all fields', 'error');
+          return;
+        }
+        
+        if (password !== confirm) {
+          DOMUtils.showMessage('Passwords do not match', 'error');
+          return;
+        }
+        
+        if (password.length < 6) {
+          DOMUtils.showMessage('Password must be at least 6 characters', 'error');
+          return;
+        }
+        
+        const recoveryCode = await this.auth.signup({
+          name,
+          email,
+          password
         });
-    });
-
-    document.addEventListener('click', this.handleCartActions);
-
-    document.getElementById('show-recovery')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        this.hideModal('login');
-        this.showModal('recovery');
-    });
-
-    document.querySelector('.recovery__form')?.addEventListener('submit', (e) => {
-        e.preventDefault();
-        this.handlePasswordReset(e);
-    });
-    document.querySelector('.switch-to-login')?.addEventListener('click', (e) => {
-        e.preventDefault();
+        
+        // Show recovery code in alert
+        alert(`Please save this recovery code: ${recoveryCode}\nYou will need it to reset your password if you forget it.`);
+        
+        // Success
+        DOMUtils.showMessage('Account created successfully! Please log in.', 'success');
         this.hideModal('signup');
         this.showModal('login');
-    });
-
-    document.querySelector('#show-signup')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        this.hideModal('login');
-        this.showModal('signup');
-    });
-
-    // Add profile close handler
-    document.querySelector('.profile__close')?.addEventListener('click', () => {
-        document.querySelector('#profile-content').classList.remove('show-profile');
-    });
-
-    // Add logout handler
-    document.querySelector('.profile__logout')?.addEventListener('click', () => {
-        if (confirm('Are you sure you want to logout?')) {
-            this.auth.logout();
-            document.querySelector('#profile-content').classList.remove('show-profile');
-            this.updateAuthUI();
-            DOMUtils.showMessage('Logged out successfully', 'info');
-        }
-    });
-    document.querySelector('.recovery__close')?.addEventListener('click', () => {
-        this.hideModal('recovery');
-    });
-    document.addEventListener('click', e => {
-        // Handle add to cart
-        if (e.target.matches('.add-to-cart')) {
-            const { bookId, bookTitle, bookPrice } = e.target.dataset;
-            this.cart.addItem({
-                id: bookId,
-                title: bookTitle,
-                price: parseFloat(bookPrice)
-            });
-            this.updateCartUI();
-        }
-
-        // Handle book details
-        if (e.target.matches('.featured__actions button') || 
-            e.target.matches('.new__card')) {
-            const bookId = e.target.closest('[data-book-id]')?.dataset.bookId;
-            if (bookId) {
-                e.preventDefault();
-                this.showBookDetails(bookId);
-            }
-        }
-    });
-
-    document.getElementById('admin-close')?.addEventListener('click', () => {
-        document.getElementById('admin-panel').classList.remove('show-panel');
-        this.loginButton.innerHTML = `<i class="ri-user-line"></i>`;
-        this.loginButton.onclick = () => this.showModal('login');
-    });
-
-    // Add escape key handler for admin panel
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && this.auth.currentUser?.isAdmin) {
-            document.getElementById('admin-panel').classList.remove('show-panel');
-        }
-    });
-
-        // Add admin nav link handler
-        document.getElementById('admin-nav-link')?.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (this.auth.currentUser?.isAdmin) {
-                document.getElementById('profile-content').classList.add('show-profile');
-                this.switchProfileTab('admin');
-            }
-        });
-    
-        document.getElementById('book-image')?.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const preview = document.getElementById('image-preview');
-                    preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-
-      // Form toggle listeners
-      this.showSignupLink?.addEventListener('click', e => {
-          e.preventDefault();
-          this.hideModal('login');
-          this.showModal('signup');
-      });
-      // Add logout handler
-      const logoutBtn = document.getElementById('profile-logout');
-      logoutBtn?.addEventListener('click', () => {
-          if (confirm('Are you sure you want to logout?')) {
-              this.auth.logout();
-              this.updateAuthUI();
-              this.hideModal('profile');
-              DOMUtils.showMessage('Logged out successfully', 'info');
-          }
-      });
-            // Add profile close button handler
-      const profileClose = DOMUtils.getElement('#profile-close', false);
-      profileClose?.addEventListener('click', () => {
-          this.hideModal('profile');
-      });
-
-      // Update global escape key handler
-      document.addEventListener('keydown', e => {
-          if (e.key === 'Escape') {
-              // Close all modals
-              this.hideModal('login');
-              this.hideModal('signup');
-              this.hideModal('profile');
-          }
-      });
-
-      // Theme toggle
-      this.themeButton?.addEventListener('click', () => this.toggleTheme());
-
-      // Cart actions
-
-      // Profile actions
-      this.profileTabs?.forEach(tab => {
-          tab.addEventListener('click', () => this.switchProfileTab(tab));
-      });
-
-      // Global escape key handler
-      document.addEventListener('keydown', e => {
-          if (e.key === 'Escape') this.hideAllModals();
-      });
-
-  }
-  handleCartActions(e) {
-    // Handle remove from cart
-    const removeButton = e.target.closest('.cart-item__remove');
-    if (removeButton) {
-        e.stopPropagation();
         
-        const cartItem = removeButton.closest('.cart-item');
-        const itemId = cartItem?.dataset.itemId;
-        
-        if (itemId && confirm('Remove this item from cart?')) {
-            this.cart.removeItem(itemId);
-            this.updateCartUI();
-            DOMUtils.showMessage('Item removed from cart', 'success');
-        }
+        // Reset form
+        document.getElementById('signup-name').value = '';
+        document.getElementById('signup-email').value = '';
+        document.getElementById('signup-pass').value = '';
+        document.getElementById('signup-confirm').value = '';
+      } catch (error) {
+        DOMUtils.showMessage(error.message, 'error');
+      }
     }
-}
-  async handlePasswordReset(e) {
-    try {
-        const email = DOMUtils.getElement('#recovery-email').value;
-        const code = DOMUtils.getElement('#recovery-code').value;
-        const newPassword = DOMUtils.getElement('#recovery-new-pass').value;
-
+  
+    async handlePasswordReset() {
+      try {
+        const email = document.getElementById('recovery-email').value;
+        const code = document.getElementById('recovery-code').value;
+        const newPassword = document.getElementById('recovery-new-pass').value;
+        
+        if (!email || !code || !newPassword) {
+          DOMUtils.showMessage('Please fill in all fields', 'error');
+          return;
+        }
+        
+        if (newPassword.length < 6) {
+          DOMUtils.showMessage('Password must be at least 6 characters', 'error');
+          return;
+        }
+        
         const newCode = await this.auth.resetPassword(email, code, newPassword);
         
+        // Show new recovery code in alert
         alert(`Your password has been reset.\nYour new recovery code is: ${newCode}`);
         
+        // Success
+        DOMUtils.showMessage('Password reset successfully! Please log in.', 'success');
         this.hideModal('recovery');
         this.showModal('login');
-        DOMUtils.showMessage('Password reset successful', 'success');
-    } catch (error) {
+        
+        // Reset form
+        document.getElementById('recovery-email').value = '';
+        document.getElementById('recovery-code').value = '';
+        document.getElementById('recovery-new-pass').value = '';
+      } catch (error) {
         DOMUtils.showMessage(error.message, 'error');
+      }
     }
-}
-  async handleLogin(e) {
-    e.preventDefault();
-    try {
-        const email = DOMUtils.getElement('#login-email').value;
-        const password = DOMUtils.getElement('#login-pass').value;
+  
+    async handlePasswordUpdate() {
+      try {
+        const currentPass = document.getElementById('current-pass').value;
+        const newPass = document.getElementById('new-pass').value;
+        const confirmPass = document.getElementById('confirm-pass').value;
         
-        const user = await this.auth.login({ email, password });
-        
-        if (user.isAdmin) {
-            // If admin, show admin panel immediately
-            document.getElementById('admin-panel').classList.add('show-panel');
-            this.initializeAdminFeatures();
-        } else {
-            // For regular users, show profile
-            document.getElementById('profile-content').classList.add('show-profile');
+        if (!currentPass || !newPass || !confirmPass) {
+          DOMUtils.showMessage('Please fill in all fields', 'error');
+          return;
         }
         
-        this.updateAuthUI();
-        DOMUtils.showMessage('Login successful', 'success');
+        if (newPass !== confirmPass) {
+          DOMUtils.showMessage('New passwords do not match', 'error');
+          return;
+        }
         
-        e.target.reset();
-        this.hideModal('login');
-    } catch (error) {
+        if (newPass.length < 6) {
+          DOMUtils.showMessage('Password must be at least 6 characters', 'error');
+          return;
+        }
+        
+        await this.auth.updatePassword(currentPass, newPass);
+        
+        // Success
+        DOMUtils.showMessage('Password updated successfully', 'success');
+        
+        // Reset form
+        document.getElementById('current-pass').value = '';
+        document.getElementById('new-pass').value = '';
+        document.getElementById('confirm-pass').value = '';
+      } catch (error) {
         DOMUtils.showMessage(error.message, 'error');
-    }
-}
-async handlePasswordUpdate(e) {
-    e.preventDefault();
-    
-    const currentPass = document.getElementById('current-pass').value;
-    const newPass = document.getElementById('new-pass').value;
-    const confirmPass = document.getElementById('confirm-pass').value;
-
-    try {
-      // Validate passwords
-      if (!currentPass || !newPass || !confirmPass) {
-        throw new Error('All fields are required');
       }
-
-      if (newPass !== confirmPass) {
-        throw new Error('New passwords do not match');
-      }
-
-      if (newPass.length < 8) {
-        throw new Error('Password must be at least 8 characters');
-      }
-
-      // Update password
-      await this.auth.updatePassword(currentPass, newPass);
-      
-      // Clear form
-      e.target.reset();
-      
-      DOMUtils.showMessage('Password updated successfully', 'success');
-    } catch (error) {
-      DOMUtils.showMessage(error.message, 'error');
     }
   }
-  async handleSignup(e) {
-        e.preventDefault();
-        try {
-            const userData = {
-                name: DOMUtils.getElement('#signup-name').value,
-                email: DOMUtils.getElement('#signup-email').value,
-                password: DOMUtils.getElement('#signup-pass').value
-            };
-            
-            const recoveryCode = this.auth.signup(userData);
-            
-            alert(`Please save this recovery code: ${recoveryCode}\nYou will need it to reset your password if you forget it.`);
-            
-            DOMUtils.showMessage('Signup successful! Please login.', 'success');
-            e.target.reset();
-            this.hideModal('signup');
-            this.showModal('login');
-        } catch (error) {
-            DOMUtils.showMessage(error.message, 'error');
-        }
-  }
-
-  handleCartActions(e) {
-    if (e.target.matches('.cart-item__remove') || e.target.closest('.cart-item__remove')) {
-        const cartItem = e.target.closest('.cart-item');
-        if (!cartItem) return;
-        
-        const itemId = cartItem.dataset.itemId;
-        if (confirm('Remove this item from cart?')) {
-            try {
-                const removed = this.cart.removeItem(itemId);
-                if (removed) {
-                    this.updateCartUI();
-                    DOMUtils.showMessage('Item removed from cart', 'success');
-                }
-            } catch (error) {
-                DOMUtils.showMessage('Failed to remove item', 'error');
-            }
-        }
-    }
-}
-
-
-  updateAuthUI() {
-    if (!this.loginButton) return;
-
-    const user = this.auth.currentUser;
-    if (user) {
-        // Update login button
-        this.loginButton.innerHTML = `<i class="ri-user-line"></i> ${user.name}`;
-        this.loginButton.onclick = () => {
-            // Show profile
-            document.getElementById('profile-content').classList.add('show-profile');
-            
-            // Update profile info fields
-            const profileName = document.getElementById('profile-name');
-            const profileEmail = document.getElementById('profile-email');
-            
-            if (profileName && profileEmail) {
-                profileName.value = user.name;
-                profileEmail.value = user.email;
-            }
-
-            // Show admin panel if admin
-            if (user.isAdmin) {
-                document.getElementById('admin-panel').classList.add('show-panel');
-                if (!this.adminInitialized) {
-                    this.initializeAdminFeatures();
-                    this.adminInitialized = true;
-                }
-            }
-        };
-    } else {
-        this.loginButton.innerHTML = `<i class="ri-user-line"></i>`;
-        this.loginButton.onclick = () => this.showModal('login');
-    }
-}
-
-// Add a method to update profile info
-updateProfileInfo() {
-    const user = this.auth.currentUser;
-    if (user) {
-        const profileName = document.getElementById('profile-name');
-        const profileEmail = document.getElementById('profile-email');
-        
-        if (profileName && profileEmail) {
-            profileName.value = user.name;
-            profileEmail.value = user.email;
-        }
-    }
-}
-
-// Update handleLogin to include profile info update
-
-
-
-
-initializeAdminFeatures() {
-    // Add admin event listeners
-    document.querySelector('.admin__add-book')?.addEventListener('click', () => {
-        this.showBookForm();
-    });
-
-    document.getElementById('book-form')?.addEventListener('submit', (e) => {
-        e.preventDefault();
-        this.handleBookSubmit(e);
-    });
-
-    document.getElementById('cancel-book')?.addEventListener('click', () => {
-        this.hideBookForm();
-    });
-
-    // Load existing books
-    this.loadBooks();
-}
-
-  handleLogout() {
-      if (confirm('Do you want to logout?')) {
-          this.auth.logout();
-          this.updateAuthUI();
-          DOMUtils.showMessage('Logged out successfully', 'info');
-      }
-  }
-
-  // In assets/js/main.js, modify the updateCartUI method
-updateCartUI() {
-    const cartList = this.cartContent?.querySelector('.profile__cart');
-    if (!cartList) return;
-
-    if (this.cart.items.length === 0) {
-        cartList.innerHTML = `
-            <div class="cart-empty">
-                <i class="ri-shopping-cart-line"></i>
-                <p>Your cart is empty</p>
-            </div>
-            <div class="cart-total">
-                <span>Total:</span>
-                <span class="cart__total">$0.00</span>
-            </div>
-        `;
-    } else {
-        cartList.innerHTML = `
-            ${this.cart.items.map(item => `
-                <div class="cart-item" data-item-id="${item.id}">
-                    <img src="${item.image || 'assets/img/default-book.png'}" alt="${item.title}" class="cart-item__img">
-                    <div class="cart-item__info">
-                        <h3 class="cart-item__title">${item.title}</h3>
-                        <span class="cart-item__price">$${item.price}</span>
-                        <span class="cart-item__quantity">Quantity: ${item.quantity || 1}</span>
-                    </div>
-                    <button class="cart-item__remove">
-                        <i class="ri-delete-bin-line"></i>
-                    </button>
-                </div>
-            `).join('')}
-            <div class="cart-total">
-                <span>Total:</span>
-                <span class="cart__total">$${this.cart.getTotal().toFixed(2)}</span>
-            </div>
-            <button class="button checkout-btn">Proceed to Checkout</button>
-        `;
-        
-        // Add event listener to the checkout button
-        const checkoutBtn = cartList.querySelector('.checkout-btn');
-        if (checkoutBtn) {
-            checkoutBtn.addEventListener('click', function() {
-                const checkout = document.getElementById('checkout-content');
-                if (checkout) {
-                    checkout.classList.add('show-checkout');
-                    loadCheckoutItems();
-                }
-            });
-        }
-    }
-}
-
-  switchProfileTab(clickedTab) {
-      this.profileTabs.forEach(tab => {
-          tab.classList.remove('active');
-          DOMUtils.getElement(`#${tab.dataset.tab}-content`).classList.remove('active');
-      });
-
-      clickedTab.classList.add('active');
-      DOMUtils.getElement(`#${clickedTab.dataset.tab}-content`).classList.add('active');
-  }
-
-  showModal(type) {
-      const modal = DOMUtils.getElement(`#${type}-content`);
-      modal.classList.add(`show-${type}`);
-  }
-
-  hideModal(type) {
-      const modal = DOMUtils.getElement(`#${type}-content`);
-      modal.classList.remove(`show-${type}`);
-  }
-
-  hideAllModals() {
-      ['login', 'signup', 'profile'].forEach(type => {
-          const modal = document.querySelector(`#${type}-content`);
-          if (modal) modal.classList.remove(`show-${type}`);
-      });
-  }
-
-  initializeTheme() {
-    if (!this.themeButton) {
-        console.error('Theme button not found');
-        return;
-    }
-
-    // Get saved preferences
-    const savedTheme = localStorage.getItem('selected-theme');
-    
-    // Apply saved theme or default
-    if (savedTheme === 'dark') {
-        document.body.classList.add(this.darkTheme);
-        this.themeButton.classList.remove('ri-moon-line');
-        this.themeButton.classList.add(this.iconTheme);
-    }
-
-    // Bind theme toggle with correct context
-    this.toggleTheme = this.toggleTheme.bind(this);
-    this.themeButton.addEventListener('click', this.toggleTheme);
-    
-    console.log('Theme initialized:', savedTheme || 'light');
-}
-
-toggleTheme() {
-    // Toggle body class
-    document.body.classList.toggle(this.darkTheme);
-    
-    // Toggle icon
-    const isDark = document.body.classList.contains(this.darkTheme);
-    this.themeButton.className = isDark ? this.iconTheme : 'ri-moon-line';
-    
-    // Save preference
-    localStorage.setItem('selected-theme', isDark ? 'dark' : 'light');
-    
-    console.log('Theme toggled:', isDark ? 'dark' : 'light');
-}
-
-
-
-}
-
-// Initialize application
+  
+  // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
-  try {
+    try {
       window.app = new UIController();
       console.log('Application initialized successfully');
-  } catch (error) {
-      console.error('Initialization failed:', error);
-      DOMUtils.showMessage('Failed to initialize application', 'error');
-  }
-});
-
-// Add this to your main.js file
-
-/*=============== CHECKOUT MODAL ===============*/
-const checkout = document.getElementById('checkout-content'),
-      checkoutClose = document.getElementById('checkout-close'),
-      continueButton = document.getElementById('continue-shopping'),
-      checkoutTabs = document.querySelectorAll('.checkout__tab'),
-      checkoutContents = document.querySelectorAll('.checkout__content')
-
-// Show checkout
-function showCheckout() {
-    if (checkout) {
-        checkout.classList.add('show-checkout')
-        // Load cart items into checkout summary
-        loadCheckoutItems()
+      
+      // Initialize checkout handlers after app is initialized
+      initCheckoutHandlers();
+    } catch (error) {
+      console.error('Initialization error:', error);
+      if (typeof DOMUtils !== 'undefined') {
+        DOMUtils.showMessage('Failed to initialize application', 'error');
+      } else {
+        alert('Failed to initialize application: ' + error.message);
+      }
     }
-}
-
-// Add an event listener to "Add to Cart" buttons
-document.addEventListener('click', function(e) {
-    if (e.target.classList.contains('add-to-cart') || 
-        e.target.parentElement.classList.contains('add-to-cart')) {
-        
-        const button = e.target.classList.contains('add-to-cart') ? 
-                      e.target : 
-                      e.target.parentElement;
-        
-        // Add the item to cart (this function should be defined elsewhere)
-        const bookId = button.getAttribute('data-book-id');
-        const bookTitle = button.getAttribute('data-book-title');
-        const bookPrice = button.getAttribute('data-book-price');
-        
-        addToCart(bookId, bookTitle, bookPrice);
-        
-        // Show a notification or update cart count
-        // This is just a placeholder - you should implement this based on your UI
-        alert(`${bookTitle} added to cart!`);
-    }
-})
-
-// Add a "Checkout" button to the cart tab in the profile
-document.addEventListener('DOMContentLoaded', function() {
-    const cartContent = document.getElementById('cart-content');
-    if (cartContent) {
-        const checkoutBtn = document.createElement('button');
-        checkoutBtn.className = 'button checkout-btn';
-        checkoutBtn.textContent = 'Proceed to Checkout';
-        checkoutBtn.addEventListener('click', showCheckout);
-        
-        // Find the cart-total div and insert the button after it
-        const cartTotal = cartContent.querySelector('.cart-total');
-        if (cartTotal) {
-            cartTotal.insertAdjacentElement('afterend', checkoutBtn);
-        } else {
-            cartContent.appendChild(checkoutBtn);
-        }
-    }
-});
-
-// Hide checkout
-function hideCheckout() {
-    if (checkout) {
-        checkout.classList.remove('show-checkout')
-    }
-}
-
-// Close checkout when the X button is clicked
-if (checkoutClose) {
-    checkoutClose.addEventListener('click', hideCheckout)
-}
-
-// Continue shopping button
-if (continueButton) {
-    continueButton.addEventListener('click', hideCheckout)
-}
-
-// Tab functionality
-function showContent(tabName) {
-    console.log('Switching to tab:', tabName);
-    
-    const contents = document.querySelectorAll('.checkout__content');
-    contents.forEach(content => {
-        content.classList.remove('active');
-    });
-    
-    const tabs = document.querySelectorAll('.checkout__tab');
-    tabs.forEach(tab => {
-        tab.classList.remove('active');
-    });
-    
-    const selectedContent = document.getElementById(`${tabName}-content`);
-    const selectedTab = document.querySelector(`[data-tab="${tabName}"]`);
-    
-    if (selectedContent && selectedTab) {
-        selectedContent.classList.add('active');
-        selectedTab.classList.add('active');
-        
-        if (tabName === 'paypal') {
-            initPayPal();
-        }
-        
-        console.log('Tab switched successfully');
-    } else {
-        console.error('Could not find tab elements');
-    }
-}
-checkoutTabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-        showContent(tab.getAttribute('data-tab'))
-    })
-})
-
-/*=============== PAYMENT INTEGRATION ===============*/
-// Credit Card Form Handling
-const cardForm = document.getElementById('card-form');
-if (cardForm) {
-    cardForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        // Here you would typically send payment data to a payment processor
-        // For this demo, we'll just show a success message
-        processCardPayment();
-    });
-}
-
-// Simulate credit card payment processing
-function processCardPayment() {
-    const checkoutContainer = document.querySelector('.checkout__container');
-    const successMessage = document.querySelector('.checkout__success');
-    
-    // Show loading state
-    cardForm.innerHTML = '<div class="loading">Processing payment...</div>';
-    
-    // Simulate API call delay
-    setTimeout(() => {
-        // Hide all checkout content
-        document.querySelector('.checkout__summary').style.display = 'none';
-        document.querySelector('.checkout__payment').style.display = 'none';
-        
-        // Show success message
-        successMessage.style.display = 'block';
-        
-        // Clear cart
-        clearCart();
-    }, 2000);
-}
-
-// PayPal Integration
-function initPayPal() {
-    console.log('Initializing PayPal...');
-    const paypalContainer = document.getElementById('paypal-button-container');
-    
-    if (!paypalContainer) {
-        console.error('PayPal container not found');
-        return;
-    }
-    
-    paypalContainer.innerHTML = '';
-    
-    console.log('PayPal container found, adding button');
-    const paypalBtn = document.createElement('button');
-    paypalBtn.className = 'button checkout__button';
-    paypalBtn.innerHTML = '<i class="ri-paypal-line"></i> Pay with PayPal';
-    paypalBtn.addEventListener('click', function() {
-        console.log('PayPal button clicked');
-        processPayPalPayment();
-    });
-    
-    paypalContainer.appendChild(paypalBtn);
-    console.log('PayPal button added');
-}
-
-// Simulate PayPal payment
-function processPayPalPayment() {
-    const checkoutContainer = document.querySelector('.checkout__container');
-    const successMessage = document.querySelector('.checkout__success');
-    const paypalContent = document.getElementById('paypal-content');
-    
-    // Show loading state
-    paypalContent.innerHTML = '<div class="loading">Redirecting to PayPal...</div>';
-    
-    // Simulate redirect and payment
-    setTimeout(() => {
-        // Hide all checkout content
-        document.querySelector('.checkout__summary').style.display = 'none';
-        document.querySelector('.checkout__payment').style.display = 'none';
-        
-        // Show success message
-        successMessage.style.display = 'block';
-        
-        // Clear cart
-        clearCart();
-    }, 2000);
-}
-
-// Function to load cart items into checkout summary
-function loadCheckoutItems() {
-    const checkoutItems = document.querySelector('.checkout__items');
-    const checkoutAmount = document.querySelector('.checkout__amount');
-    
-    if (!checkoutItems || !checkoutAmount) return;
-    
-    // Clear existing items
-    checkoutItems.innerHTML = '';
-    
-    // Get cart items from localStorage (you should implement this)
-    const cartItems = getCartItems() || [];
-    let total = 0;
-    
-    if (cartItems.length === 0) {
-        checkoutItems.innerHTML = '<p>Your cart is empty</p>';
-        checkoutAmount.textContent = '$0.00';
-        return;
-    }
-    
-    // Add each item to checkout summary
-    cartItems.forEach(item => {
-        const itemElement = document.createElement('div');
-        itemElement.className = 'checkout__item';
-        itemElement.innerHTML = `
-            <img src="assets/img/book-${item.id || '1'}.png" alt="${item.title}" class="checkout__item-img">
-            <div>
-                <h3 class="checkout__item-title">${item.title}</h3>
-                <span class="checkout__item-quantity">Qty: ${item.quantity}</span>
-            </div>
-            <span class="checkout__item-price">$${(item.price * item.quantity).toFixed(2)}</span>
-        `;
-        
-        checkoutItems.appendChild(itemElement);
-        total += item.price * item.quantity;
-    });
-    
-    checkoutAmount.textContent = `$${total.toFixed(2)}`;
-}
-
-// Placeholder functions for cart management - replace with your actual implementation
-function addToCart(id, title, price) {
-    // Get existing cart items
-    let cartItems = JSON.parse(localStorage.getItem('cartItems')) || [];
-    
-    // Check if item already exists
-    const existingItem = cartItems.find(item => item.id === id);
-    
-    if (existingItem) {
-        // Increase quantity
-        existingItem.quantity += 1;
-    } else {
-        // Add new item
-        cartItems.push({
-            id: id,
-            title: title,
-            price: parseFloat(price),
-            quantity: 1
-        });
-    }
-    
-    // Save updated cart
-    localStorage.setItem('cartItems', JSON.stringify(cartItems));
-}
-
-function getCartItems() {
-    return JSON.parse(localStorage.getItem('cartItems')) || [];
-}
-
-function clearCart() {
-    localStorage.removeItem('cartItems');
-}
-
-// Initialize PayPal when DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-    initPayPal();
-});
-
-document.addEventListener('DOMContentLoaded', function() {
-    const checkoutTabs = document.querySelectorAll('.checkout__tab');
-    
-    checkoutTabs.forEach(tab => {
-        tab.addEventListener('click', function() {
-            const tabName = this.getAttribute('data-tab');
-            console.log('Tab clicked:', tabName);
-            showContent(tabName);
-        });
-    });
-});
-
-document.addEventListener('DOMContentLoaded', function() {
+  });
+  
+  // Initialize checkout handlers
+  function initCheckoutHandlers() {
     const checkout = document.getElementById('checkout-content');
     const checkoutClose = document.getElementById('checkout-close');
     const continueButton = document.getElementById('continue-shopping');
+    const checkoutTabs = document.querySelectorAll('.checkout__tab');
+    const placeOrderButton = document.getElementById('place-order');
     
+    // Close checkout
     if (checkoutClose) {
-        checkoutClose.addEventListener('click', function() {
-            if (checkout) {
-                checkout.classList.remove('show-checkout');
-                console.log('Checkout modal closed via X button');
-            }
-        });
+      checkoutClose.addEventListener('click', () => {
+        checkout?.classList.remove('show-checkout');
+      });
     }
     
+    // Continue shopping
     if (continueButton) {
-        continueButton.addEventListener('click', function() {
-            if (checkout) {
-                checkout.classList.remove('show-checkout');
-                console.log('Checkout modal closed via continue shopping');
-            }
-        });
+      continueButton.addEventListener('click', () => {
+        checkout?.classList.remove('show-checkout');
+      });
     }
     
-    const style = document.createElement('style');
-    style.textContent = `
-        .show-checkout {
-            opacity: 1 !important;
-            visibility: visible !important;
+    // Switch checkout tabs
+    if (checkoutTabs.length) {
+      checkoutTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          const tabId = tab.dataset.tab;
+          
+          // Remove active class from all tabs and contents
+          checkoutTabs.forEach(t => t.classList.remove('active'));
+          document.querySelectorAll('.checkout__content').forEach(c => c.classList.remove('active'));
+          
+          // Add active class to current tab and content
+          tab.classList.add('active');
+          document.getElementById(`${tabId}-checkout`)?.classList.add('active');
+        });
+      });
+    }
+    
+    // Place order
+    if (placeOrderButton) {
+      placeOrderButton.addEventListener('click', () => {
+        // Validate form
+        const form = document.getElementById('checkout-form');
+        if (!form) return;
+        
+        if (form.checkValidity()) {
+          // Show success message
+          const orderMessage = document.createElement('div');
+          orderMessage.className = 'order-success';
+          orderMessage.innerHTML = `
+            <i class="ri-check-line"></i>
+            <h3>Order Placed Successfully!</h3>
+            <p>Thank you for your purchase.</p>
+            <p>Your order number is: ORD-${Math.floor(Math.random() * 10000)}</p>
+            <button class="button" id="close-order-message">Continue</button>
+          `;
+          
+          document.body.appendChild(orderMessage);
+          
+          // Add close handler
+          document.getElementById('close-order-message')?.addEventListener('click', () => {
+            orderMessage.remove();
+            checkout?.classList.remove('show-checkout');
+            
+            // Clear cart if user is logged in
+            if (window.app && window.app.cart) {
+              window.app.cart.clearCart();
+            }
+          });
+        } else {
+          // Show validation message
+          form.reportValidity();
         }
-    `;
-    document.head.appendChild(style);
-});
-// Add toast styles
-const style = document.createElement('style');
-style.textContent = `
-.toast {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  padding: 12px 24px;
-  border-radius: 4px;
-  color: white;
-  z-index: 1000;
-  animation: slideIn 0.3s, fadeOut 0.3s 2.7s;
-}
-.toast--success { background-color: #4caf50; }
-.toast--error { background-color: #f44336; }
-.toast--info { background-color: #2196f3; }
-
-@keyframes slideIn {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
-}
-@keyframes fadeOut {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}`;
-document.head.appendChild(style);
+      });
+    }
+  }
+  
+  // Show checkout function
+  function showCheckout() {
+    const checkout = document.getElementById('checkout-content');
+    if (checkout) {
+      checkout.classList.add('show-checkout');
+    }
+  }
+  
+  // Add a style element for toast and order success
+  const style = document.createElement('style');
+  style.textContent = `
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 12px 24px;
+    border-radius: 4px;
+    color: white;
+    z-index: 1000;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    max-width: 80%;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+  .toast.show {
+    transform: translateX(0);
+  }
+  .toast--success { background-color: #4caf50; }
+  .toast--error { background-color: #f44336; }
+  .toast--info { background-color: #2196f3; }
+  
+  .order-success {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    z-index: 2000;
+    max-width: 90%;
+    width: 400px;
+  }
+  
+  .order-success i {
+    font-size: 3rem;
+    color: #4caf50;
+    margin-bottom: 1rem;
+  }
+  
+  .order-success h3 {
+    margin-bottom: 0.5rem;
+  }
+  
+  .order-success p {
+    margin-bottom: 1rem;
+    color: #666;
+  }
+  
+  .order-success button {
+    margin-top: 1rem;
+  }
+  
+  @media screen and (max-width: 576px) {
+    .order-success {
+      width: 90%;
+      padding: 1.5rem;
+    }
+  }
+  `;
+  document.head.appendChild(style);
+  
