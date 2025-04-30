@@ -360,17 +360,17 @@ class DOMUtils {
       try {
         console.log('Attempting login with remember me:', rememberMe);
         
-        // Store the remember me preference
-        localStorage.setItem('rememberMe', rememberMe);
+        // Store the remember me preference 
+        localStorage.setItem('rememberMe', rememberMe.toString());
         
         // Set persistence based on rememberMe option
         try {
-          await this.auth.setPersistence(
-            rememberMe 
-              ? firebase.auth.Auth.Persistence.LOCAL  // Persists even after browser restart
-              : firebase.auth.Auth.Persistence.SESSION // Only for current session
-          );
-          console.log('Persistence set successfully to:', rememberMe ? 'LOCAL' : 'SESSION');
+          const persistenceType = rememberMe ? 
+            firebase.auth.Auth.Persistence.LOCAL : 
+            firebase.auth.Auth.Persistence.SESSION;
+            
+          await this.auth.setPersistence(persistenceType);
+          console.log('Persistence set to:', rememberMe ? 'LOCAL' : 'SESSION');
         } catch (persistenceError) {
           console.error('Error setting persistence:', persistenceError);
           // Continue with login despite persistence error
@@ -389,7 +389,7 @@ class DOMUtils {
         throw new Error(this.getAuthErrorMessage(error));
       }
     }
-  
+
     async signup(userData) {
       try {
         // Create auth user
@@ -628,7 +628,17 @@ class DOMUtils {
       // Controllers
       this.auth = new AuthController(this.firebase);
       this.cart = null;
-      
+      // Inside UIController constructor
+this.auth.auth.onAuthStateChanged((user) => {
+  if (user) {
+    console.log('User is signed in on page load:', user.uid);
+    // Update UI without full login process
+    this.fetchUserAndUpdateUI(user.uid);
+  } else {
+    console.log('No user is signed in on page load');
+    this.updateAuthUI(null);
+  }
+});
       // Initialize after a short delay to ensure Firebase is ready
       setTimeout(() => {
         this.initializeElements();
@@ -958,7 +968,20 @@ class DOMUtils {
         });
       }
     }
-  
+    async fetchUserAndUpdateUI(uid) {
+      try {
+        const userData = await this.firebase.getCurrentUserData(uid);
+        if (userData) {
+          this.auth.currentUser = {
+            uid,
+            ...userData
+          };
+          this.updateAuthUI(this.auth.currentUser);
+        }
+      } catch (error) {
+        console.error('Error fetching user data on auth state change:', error);
+      }
+    }
     async loadBooks() {
       try {
         const books = await this.firebase.getBooks();
@@ -1630,38 +1653,39 @@ class DOMUtils {
       }
     }
   
-    async handleLogin() {
-      try {
-        const email = document.getElementById('login-email').value;
-        const password = document.getElementById('login-pass').value;
-        const rememberMe = document.getElementById('remember-me')?.checked || false;
-        
-        console.log('Login attempt with:', email, 'Remember Me:', rememberMe);
-        
-        if (!email || !password) {
-          DOMUtils.showMessage('Please enter both email and password', 'error');
-          return;
-        }
-        
-        const user = await this.auth.login(email, password, rememberMe);
-        console.log('Login successful, user data:', user);
-        
-        // Success
-        DOMUtils.showMessage(`Welcome, ${user.name || 'User'}!`, 'success');
-        this.hideModal('login');
-        this.updateAuthUI();
-        
-        // Reset form
-        document.getElementById('login-email').value = '';
-        document.getElementById('login-pass').value = '';
-        
-        return user;
-      } catch (error) {
-        console.error('Detailed login error:', error);
-        DOMUtils.showMessage(error.message, 'error');
-        return null;
-      }
+async handleLogin() {
+  try {
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-pass').value;
+    const rememberMeCheckbox = document.getElementById('remember-me');
+    const rememberMe = rememberMeCheckbox ? rememberMeCheckbox.checked : false;
+    
+    console.log('Login attempt with:', email, 'Remember Me:', rememberMe);
+    
+    if (!email || !password) {
+      DOMUtils.showMessage('Please enter both email and password', 'error');
+      return;
     }
+    
+    const user = await this.auth.login(email, password, rememberMe);
+    console.log('Login successful, user data:', user);
+    
+    // Success
+    DOMUtils.showMessage(`Welcome, ${user.name || 'User'}!`, 'success');
+    this.hideModal('login');
+    this.updateAuthUI();
+    
+    // Reset form (but preserve remember me state)
+    document.getElementById('login-email').value = '';
+    document.getElementById('login-pass').value = '';
+    
+    return user;
+  } catch (error) {
+    console.error('Detailed login error:', error);
+    DOMUtils.showMessage(error.message, 'error');
+    return null;
+  }
+}
   
     async handleSignup() {
       try {
