@@ -15,7 +15,7 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase if not already initialized
-function initializeFirebase() {
+async function initializeFirebase() {
   if (typeof firebase === 'undefined') {
     console.error('Firebase SDK is not loaded. Make sure to include Firebase scripts.');
     return null;
@@ -28,6 +28,26 @@ function initializeFirebase() {
       console.log('Firebase initialized successfully');
     } else {
       console.log('Using existing Firebase instance');
+    }
+    
+    // Check if user has selected "Remember Me" previously
+    const rememberMe = localStorage.getItem('rememberMe') === 'true';
+    
+    // Set persistence based on stored preference
+    if (rememberMe) {
+      try {
+        await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+        console.log('Firebase persistence set to LOCAL');
+      } catch (persistenceError) {
+        console.error('Error setting persistence:', persistenceError);
+      }
+    } else {
+      try {
+        await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.SESSION);
+        console.log('Firebase persistence set to SESSION');
+      } catch (persistenceError) {
+        console.error('Error setting persistence:', persistenceError);
+      }
     }
     
     // Set up Firebase services
@@ -47,4 +67,13 @@ function initializeFirebase() {
 }
 
 // Initialize Firebase
-const firebaseServices = initializeFirebase();
+(async function() {
+  try {
+    const firebaseServices = await initializeFirebase();
+    if (firebaseServices) {
+      console.log('Firebase services ready');
+    }
+  } catch (error) {
+    console.error('Error during Firebase initialization:', error);
+  }
+})();

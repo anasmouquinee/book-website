@@ -358,15 +358,31 @@ class DOMUtils {
   
     async login(email, password, rememberMe = false) {
       try {
-        // Set persistence based on rememberMe option
-        await this.auth.setPersistence(
-          rememberMe 
-            ? firebase.auth.Auth.Persistence.LOCAL  // Persists even after browser restart
-            : firebase.auth.Auth.Persistence.SESSION // Only for current session
-        );
+        console.log('Attempting login with remember me:', rememberMe);
         
+        // Store the remember me preference
+        localStorage.setItem('rememberMe', rememberMe);
+        
+        // Set persistence based on rememberMe option
+        try {
+          await this.auth.setPersistence(
+            rememberMe 
+              ? firebase.auth.Auth.Persistence.LOCAL  // Persists even after browser restart
+              : firebase.auth.Auth.Persistence.SESSION // Only for current session
+          );
+          console.log('Persistence set successfully to:', rememberMe ? 'LOCAL' : 'SESSION');
+        } catch (persistenceError) {
+          console.error('Error setting persistence:', persistenceError);
+          // Continue with login despite persistence error
+        }
+        
+        // Sign in user
         const userCredential = await this.auth.signInWithEmailAndPassword(email, password);
+        console.log('Login successful, fetching user profile...');
+        
+        // Fetch user profile data
         await this.fetchUserProfile(userCredential.user.uid);
+        
         return this.currentUser;
       } catch (error) {
         console.error('Login error:', error);
