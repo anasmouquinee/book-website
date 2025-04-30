@@ -356,8 +356,15 @@ class DOMUtils {
       }
     }
   
-    async login(email, password) {
+    async login(email, password, rememberMe = false) {
       try {
+        // Set persistence based on rememberMe option
+        await this.auth.setPersistence(
+          rememberMe 
+            ? firebase.auth.Auth.Persistence.LOCAL  // Persists even after browser restart
+            : firebase.auth.Auth.Persistence.SESSION // Only for current session
+        );
+        
         const userCredential = await this.auth.signInWithEmailAndPassword(email, password);
         await this.fetchUserProfile(userCredential.user.uid);
         return this.currentUser;
@@ -1598,36 +1605,37 @@ class DOMUtils {
     }
   
     async handleLogin() {
-        try {
-          const email = document.getElementById('login-email').value;
-          const password = document.getElementById('login-pass').value;
-          
-          console.log('Login attempt with:', email);
-          
-          if (!email || !password) {
-            DOMUtils.showMessage('Please enter both email and password', 'error');
-            return;
-          }
-          
-          const user = await this.auth.login(email, password);
-          console.log('Login successful, user data:', user);
-          
-          // Success
-          DOMUtils.showMessage(`Welcome, ${user.name || 'User'}!`, 'success');
-          this.hideModal('login');
-          this.updateAuthUI(); // Add this to ensure UI is updated
-          
-          // Reset form
-          document.getElementById('login-email').value = '';
-          document.getElementById('login-pass').value = '';
-          
-          return user;
-        } catch (error) {
-          console.error('Detailed login error:', error);
-          DOMUtils.showMessage(error.message, 'error');
-          return null;
+      try {
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-pass').value;
+        const rememberMe = document.getElementById('remember-me')?.checked || false;
+        
+        console.log('Login attempt with:', email, 'Remember Me:', rememberMe);
+        
+        if (!email || !password) {
+          DOMUtils.showMessage('Please enter both email and password', 'error');
+          return;
         }
+        
+        const user = await this.auth.login(email, password, rememberMe);
+        console.log('Login successful, user data:', user);
+        
+        // Success
+        DOMUtils.showMessage(`Welcome, ${user.name || 'User'}!`, 'success');
+        this.hideModal('login');
+        this.updateAuthUI();
+        
+        // Reset form
+        document.getElementById('login-email').value = '';
+        document.getElementById('login-pass').value = '';
+        
+        return user;
+      } catch (error) {
+        console.error('Detailed login error:', error);
+        DOMUtils.showMessage(error.message, 'error');
+        return null;
       }
+    }
   
     async handleSignup() {
       try {

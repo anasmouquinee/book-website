@@ -5,6 +5,21 @@
 
 class VIPManager {
     constructor() {
+      // Initialize VIP Manager when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+  // Check if firebase services are initialized before creating VIP manager
+  const initVipManager = () => {
+    if (typeof firebase !== 'undefined' && firebase.apps.length) {
+      window.vipManager = new VIPManager();
+      console.log('VIP Manager initialized');
+    } else {
+      // Retry after delay
+      setTimeout(initVipManager, 1000);
+    }
+  };
+  
+  initVipManager();
+});
       // Initialize Firebase
       const services = window.firebaseServices || this.initializeFirebase();
       if (!services) {
@@ -465,36 +480,298 @@ class VIPManager {
         return;
       }
       
-      this.showNotification('Processing your upgrade...', 'info');
+      this.showNotification('Processing your payment...', 'info');
       
-      // Simulate payment processing
-      try {
-        // Wait for 1.5 seconds to simulate payment
-        await new Promise(resolve => setTimeout(resolve, 1500));
+      // Show payment processing modal
+      this.showPaymentProcessingModal(plan);
+    }
+    
+    showPaymentProcessingModal(plan) {
+      // Create payment processing modal
+      const modal = document.createElement('div');
+      modal.className = 'payment-modal';
+      modal.innerHTML = `
+        <div class="payment-modal__content">
+          <h3>Complete Your VIP Upgrade</h3>
+          <p>You're upgrading to the ${plan === 'monthly' ? 'Monthly' : 'Annual'} VIP plan.</p>
+          
+          <div class="payment-form">
+            <div class="payment-form__group">
+              <label for="card-name">Cardholder Name</label>
+              <input type="text" id="card-name" placeholder="John Doe" required>
+            </div>
+            
+            <div class="payment-form__group">
+              <label for="card-number">Card Number</label>
+              <input type="text" id="card-number" placeholder="1234 5678 9012 3456" maxlength="19" required>
+            </div>
+            
+            <div class="payment-form__row">
+              <div class="payment-form__group">
+                <label for="card-expiry">Expiry Date</label>
+                <input type="text" id="card-expiry" placeholder="MM/YY" maxlength="5" required>
+              </div>
+              
+              <div class="payment-form__group">
+                <label for="card-cvc">CVC</label>
+                <input type="text" id="card-cvc" placeholder="123" maxlength="3" required>
+              </div>
+            </div>
+            
+            <div class="payment-summary">
+              <div class="payment-summary__item">
+                <span>Plan:</span>
+                <span>${plan === 'monthly' ? 'Monthly' : 'Annual'} VIP</span>
+              </div>
+              <div class="payment-summary__item">
+                <span>Price:</span>
+                <span>${plan === 'monthly' ? '$4.99/month' : '$39.99/year'}</span>
+              </div>
+              ${plan === 'annual' ? '<div class="payment-summary__item"><span>Savings:</span><span>Save 33%</span></div>' : ''}
+              <div class="payment-summary__total">
+                <span>Total Today:</span>
+                <span>${plan === 'monthly' ? '$4.99' : '$39.99'}</span>
+              </div>
+            </div>
+            
+            <div class="payment-form__actions">
+              <button class="button payment-submit-btn" id="process-payment">Complete Payment</button>
+              <button class="button button--ghost payment-cancel-btn" id="cancel-payment">Cancel</button>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      // Format card number with spaces
+      const cardNumberInput = document.getElementById('card-number');
+      cardNumberInput?.addEventListener('input', (e) => {
+        let value = e.target.value.replace(/\s/g, '');
+        if (value.length > 0) {
+          value = value.match(new RegExp('.{1,4}', 'g')).join(' ');
+        }
+        e.target.value = value;
+      });
+      
+      // Format expiry date with slash
+      const expiryInput = document.getElementById('card-expiry');
+      expiryInput?.addEventListener('input', (e) => {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value.length > 2) {
+          value = value.substring(0, 2) + '/' + value.substring(2, 4);
+        }
+        e.target.value = value;
+      });
+      
+      // Process payment
+      document.getElementById('process-payment')?.addEventListener('click', async () => {
+        const cardName = document.getElementById('card-name')?.value;
+        const cardNumber = document.getElementById('card-number')?.value;
+        const cardExpiry = document.getElementById('card-expiry')?.value;
+        const cardCvc = document.getElementById('card-cvc')?.value;
         
-        // Update user record with VIP status
-        await this.db.ref(`users/${this.currentUser.uid}`).update({
-          isVIP: true,
-          VIPActivatedAt: firebase.database.ServerValue.TIMESTAMP,
-          VIPPlan: plan,
-          VIPExpiresAt: plan === 'monthly' 
-            ? Date.now() + (30 * 24 * 60 * 60 * 1000) // 30 days
-            : Date.now() + (365 * 24 * 60 * 60 * 1000), // 365 days
-        });
+        if (!cardName || !cardNumber || !cardExpiry || !cardCvc) {
+          this.showNotification('Please fill in all payment details', 'error');
+          return;
+        }
         
-        // Update local user object
-        this.currentUser.isVIP = true;
+        // Simple validation
+        if (cardNumber.replace(/\s/g, '').length < 16) {
+          this.showNotification('Please enter a valid card number', 'error');
+          return;
+        }
         
-        this.showNotification('You are now a VIP member!', 'success');
-        this.hideVIPModal();
+        if (cardExpiry.length < 5) {
+          this.showNotification('Please enter a valid expiry date', 'error');
+          return;
+        }
         
-        // Refresh any VIP features on the page
-        this.triggerVIPUpdate();
+        if (cardCvc.length < 3) {
+          this.showNotification('Please enter a valid CVC', 'error');
+          return;
+        }
         
-      } catch (error) {
-        console.error('Error upgrading to VIP:', error);
-        this.showNotification('Failed to process your upgrade. Please try again.', 'error');
-      }
+        // Show processing
+        const submitBtn = document.getElementById('process-payment');
+        if (submitBtn) {
+          submitBtn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Processing...';
+          submitBtn.disabled = true;
+        }
+        
+        try {
+          // Simulate payment processing
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          // Update user record with VIP status
+          await this.db.ref(`users/${this.currentUser.uid}`).update({
+            isVIP: true,
+            VIPActivatedAt: firebase.database.ServerValue.TIMESTAMP,
+            VIPPlan: plan,
+            VIPExpiresAt: plan === 'monthly' 
+              ? Date.now() + (30 * 24 * 60 * 60 * 1000) // 30 days
+              : Date.now() + (365 * 24 * 60 * 60 * 1000), // 365 days
+            paymentMethod: {
+              type: 'card',
+              lastFour: cardNumber.replace(/\s/g, '').slice(-4),
+              expiryDate: cardExpiry
+            }
+          });
+          
+          // Update local user object
+          this.currentUser.isVIP = true;
+          
+          // Remove modal
+          modal.remove();
+          
+          this.showNotification('You are now a VIP member!', 'success');
+          this.hideVIPModal();
+          
+          // Refresh any VIP features on the page
+          this.triggerVIPUpdate();
+          
+        } catch (error) {
+          console.error('Error processing payment:', error);
+          this.showNotification('Payment processing failed. Please try again.', 'error');
+          
+          // Reset button
+          if (submitBtn) {
+            submitBtn.innerHTML = 'Complete Payment';
+            submitBtn.disabled = false;
+          }
+        }
+      });
+      
+      // Cancel payment
+      document.getElementById('cancel-payment')?.addEventListener('click', () => {
+        modal.remove();
+        this.showNotification('Payment cancelled', 'info');
+      });
+      
+      // Add payment modal styles
+      this.addPaymentStyles();
+    }
+    
+    addPaymentStyles() {
+      if (document.getElementById('payment-styles')) return;
+      
+      const style = document.createElement('style');
+      style.id = 'payment-styles';
+      style.textContent = `
+        .payment-modal {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background-color: rgba(0, 0, 0, 0.75);
+          z-index: 10000;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
+        
+        .payment-modal__content {
+          background-color: var(--body-color);
+          border-radius: 1rem;
+          width: 90%;
+          max-width: 500px;
+          padding: 2rem;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+        
+        .payment-modal__content h3 {
+          margin-bottom: 1rem;
+          text-align: center;
+        }
+        
+        .payment-modal__content p {
+          margin-bottom: 1.5rem;
+          text-align: center;
+          color: var(--text-color-light);
+        }
+        
+        .payment-form__group {
+          margin-bottom: 1rem;
+        }
+        
+        .payment-form__group label {
+          display: block;
+          margin-bottom: 0.5rem;
+          font-weight: 500;
+        }
+        
+        .payment-form__group input {
+          width: 100%;
+          padding: 0.75rem;
+          border: 1px solid var(--border-color);
+          border-radius: 0.5rem;
+          background-color: var(--container-color);
+          color: var(--text-color);
+        }
+        
+        .payment-form__row {
+          display: flex;
+          gap: 1rem;
+        }
+        
+        .payment-form__row .payment-form__group {
+          flex: 1;
+        }
+        
+        .payment-summary {
+          margin: 1.5rem 0;
+          padding: 1rem;
+          background-color: var(--container-color);
+          border-radius: 0.5rem;
+        }
+        
+        .payment-summary__item {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 0.5rem;
+        }
+        
+        .payment-summary__total {
+          display: flex;
+          justify-content: space-between;
+          margin-top: 0.5rem;
+          padding-top: 0.5rem;
+          border-top: 1px solid var(--border-color);
+          font-weight: 600;
+        }
+        
+        .payment-form__actions {
+          display: flex;
+          gap: 1rem;
+        }
+        
+        .payment-form__actions button {
+          flex: 1;
+        }
+        
+        .ri-spin {
+          animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        
+        @media screen and (max-width: 576px) {
+          .payment-modal__content {
+            padding: 1.5rem;
+          }
+          
+          .payment-form__row {
+            flex-direction: column;
+            gap: 0.5rem;
+          }
+        }
+      `;
+      
+      document.head.appendChild(style);
     }
     
     showNotification(message, type = 'info') {

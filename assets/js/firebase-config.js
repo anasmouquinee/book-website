@@ -1,8 +1,8 @@
 /**
  * Firebase configuration for the book website
- * Centralizes Firebase setup to avoid duplication
  */
 
+// Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyDpirWLijm_xTK6UxKZq0PoCYTaGl5AOs8",
   authDomain: "kaelar-83c97.firebaseapp.com",
@@ -30,21 +30,21 @@ function initializeFirebase() {
       console.log('Using existing Firebase instance');
     }
     
-    return {
+    // Set up Firebase services
+    const services = {
       auth: firebase.auth(),
       db: firebase.database()
     };
+    
+    // Make services available globally
+    window.firebaseServices = services;
+    
+    return services;
   } catch (error) {
     console.error('Firebase initialization failed:', error);
     return null;
   }
 }
 
-// Create Firebase services
+// Initialize Firebase
 const firebaseServices = initializeFirebase();
-
-// Make services available globally
-if (typeof window !== 'undefined') {
-  window.firebaseServices = firebaseServices;
-  console.log('Firebase services exported to window.firebaseServices');
-}
