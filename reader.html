@@ -13,9 +13,11 @@ website\reader.html -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/3.5.0/remixicon.css">
   
   <!-- CSS -->
-  <link rel="stylesheet" href="assets/css/styles.css">
-  <link rel="stylesheet" href="assets/css/reader.css">
-  <link rel="stylesheet" href="assets/css/vip-features.css">
+<!-- CSS -->
+<link rel="stylesheet" href="assets/css/styles.css">
+<link rel="stylesheet" href="assets/css/reader.css">
+<link rel="stylesheet" href="assets/css/vip-features.css">
+<link rel="stylesheet" href="assets/css/highlight.css">
   
   <style>
     /* Reader-specific styles */
@@ -555,6 +557,10 @@ website\reader.html -->
         <button class="reader__button" id="theme-toggle">
           <i class="ri-contrast-2-line"></i>
         </button>
+        <!-- Add this highlight toggle button -->
+        <button class="reader__button" id="highlight-toggle">
+          <i class="ri-mark-pen-line"></i>
+        </button>
         <button class="reader__button" id="bookmark">
           <i class="ri-bookmark-line"></i>
         </button>
@@ -662,15 +668,24 @@ website\reader.html -->
         </button>
       </div>
     </footer>
+    <!-- Sync reading toggle -->
+<div class="sync-reading" id="sync-reading">
+  <input type="checkbox" id="sync-checkbox" checked>
+  <label for="sync-checkbox">Sync Reading</label>
+</div>
   </div>
   
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  
-  <!-- Reader JavaScript -->
-  <script src="assets/js/firebase-config.js"></script>
-  <script src="assets/js/reader.js"></script>
-</body>
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+<!-- Firebase Config (MUST LOAD FIRST) -->
+<script src="assets/js/firebase-config.js"></script>
+
+<!-- THEN load the highlight controller -->
+<script src="assets/js/highlight-controller.js"></script>
+
+<!-- Finally load the reader script -->
+<script src="assets/js/reader.js"></script>
 </html>

@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let unreadMessages = 0;
   let currentPage = 1;
   let totalPages = 20; // Mock value for demo
-  
+  let highlightController = null;
   // Reader elements
   const readerContent = document.getElementById('reader-content');
   const currentPageEl = document.getElementById('current-page');
@@ -27,7 +27,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const fontIncreaseBtn = document.getElementById('font-increase');
   const fontDecreaseBtn = document.getElementById('font-decrease');
   const themeToggleBtn = document.getElementById('theme-toggle');
-  
+  // Sync reading checkbox
+const syncReadingCheckbox = document.getElementById('sync-reading');
+let syncReading = true;
   // Room elements
   const roomSidebar = document.getElementById('room-sidebar');
   const toggleSidebar = document.getElementById('toggle-sidebar');
@@ -55,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
     bookId = urlParams.get('id');
     console.log('Book ID from URL:', bookId);
   }
-  
+
   // UI event listeners
   
   // Toggle sidebar
@@ -257,6 +259,34 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   async function initializeReadingRoom() {
+    if (roomId && readerContent && currentUser) {
+      console.log('Setting up highlight controller for room:', roomId);
+      window.highlightController = new HighlightController({
+        roomId,
+        bookId,
+        currentUser,
+        db,
+        readerContent: document.getElementById('reader-content'),
+        highlightToggle: document.getElementById('highlight-toggle')
+      });
+      
+      // Show sync reading control
+      const syncReadingCheckbox = document.getElementById('sync-reading');
+      if (syncReadingCheckbox) {
+        syncReadingCheckbox.style.display = 'flex';
+      }
+    } else {
+      // Hide highlight button and sync reading control if not in a room
+      const highlightToggle = document.getElementById('highlight-toggle');
+      if (highlightToggle) {
+        highlightToggle.style.display = 'none';
+      }
+      
+      const syncReadingCheckbox = document.getElementById('sync-reading');
+      if (syncReadingCheckbox) {
+        syncReadingCheckbox.style.display = 'none';
+      }
+    }
     try {
       if (!roomId || !currentUser) {
         showNotification('Cannot initialize reading room', 'error');
@@ -267,7 +297,28 @@ document.addEventListener('DOMContentLoaded', () => {
       console.log('Fetching room data for:', roomId);
       const roomSnapshot = await db.ref(`readingRooms/${roomId}`).once('value');
       const room = roomSnapshot.val();
+      if (syncReadingCheckbox) {
+        db.ref(`readingRooms/${roomId}/activeUsers`).on('child_changed', (snapshot) => {
+          const userData = snapshot.val();
+          
+          // Don't react to our own changes
+          if (snapshot.key === currentUser.uid || !syncReading) return;
+          
+          // If someone else changed pages and we're syncing
+          if (userData.currentPage && userData.currentPage !== currentPage) {
+            // Ask user if they want to sync
+            const shouldSync = confirm(`${userData.name || 'Another reader'} moved to page ${userData.currentPage}. Follow along?`);
+            
+            if (shouldSync) {
+              currentPage = userData.currentPage;
+              updatePage();
+            }
+          }
+        });
+      }
       
+      // Load book content
+      loadBook(bookId);
       if (!room) {
         showNotification('Reading room not found', 'error');
         setTimeout(() => {
@@ -604,11 +655,23 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // If in a reading room, sync page with other users
     if (roomId && currentUser) {
+      // Update the user's current page in the database
       db.ref(`readingRooms/${roomId}/activeUsers/${currentUser.uid}`).update({
         currentPage: currentPage
       }).catch(error => {
         console.error('Error updating current page:', error);
       });
+    }
+    
+    // Reload highlights after page change if we have a highlight controller
+    if (window.highlightController) {
+      setTimeout(() => {
+        if (typeof window.highlightController.handlePageChange === 'function') {
+          window.highlightController.handlePageChange();
+        } else if (typeof window.highlightController.loadHighlights === 'function') {
+          window.highlightController.loadHighlights();
+        }
+      }, 300);
     }
   }
   

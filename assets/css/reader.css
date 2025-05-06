@@ -567,3 +567,155 @@ body.dark-theme .reader__content {
     max-height: 40vh;
   }
 }
+/* Highlighted text styles */
+.highlight {
+  background-color: rgba(255, 255, 0, 0.3);
+  cursor: pointer;
+  position: relative;
+  border-radius: 2px;
+  transition: background-color 0.2s;
+}
+
+.highlight:hover {
+  background-color: rgba(255, 255, 0, 0.5);
+}
+
+.highlight.highlight-red {
+  background-color: rgba(255, 0, 0, 0.2);
+}
+
+.highlight.highlight-green {
+  background-color: rgba(0, 255, 0, 0.2);
+}
+
+.highlight.highlight-blue {
+  background-color: rgba(0, 0, 255, 0.2);
+}
+
+/* Highlight controls */
+.highlight-controls {
+  display: none;
+  position: absolute;
+  background-color: var(--body-color);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  padding: 0.5rem;
+  z-index: 50;
+}
+
+.highlight-controls.active {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.highlight-color {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+}
+
+.highlight-color:hover {
+  transform: scale(1.1);
+}
+
+.highlight-color.yellow {
+  background-color: rgba(255, 255, 0, 0.7);
+}
+
+.highlight-color.red {
+  background-color: rgba(255, 0, 0, 0.7);
+}
+
+.highlight-color.green {
+  background-color: rgba(0, 255, 0, 0.7);
+}
+
+.highlight-color.blue {
+  background-color: rgba(0, 0, 255, 0.7);
+}
+
+.highlight-delete {
+  border: none;
+  background-color: transparent;
+  color: var(--text-color);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0;
+  margin: 0;
+}
+
+.highlight-delete:hover {
+  color: var(--first-color-dark);
+}
+
+/* Highlight control tooltips */
+.highlight-tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--body-color);
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  font-size: var(--smaller-font-size);
+  white-space: nowrap;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+}
+
+.highlight-delete:hover .highlight-tooltip,
+.highlight-color:hover .highlight-tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Sync reading indicator */
+.sync-reading {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  background-color: var(--container-color);
+  border-radius: 4px;
+  padding: 0.5rem;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  font-size: var(--small-font-size);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  z-index: 90;
+  transition: background-color 0.2s;
+}
+
+.sync-reading.active {
+  background-color: var(--first-color-lighter);
+}
+
+.sync-reading input {
+  margin: 0;
+  cursor: pointer;
+}
+
+.sync-reading label {
+  cursor: pointer;
+  user-select: none;
+}
+/* Active highlight mode */
+.reader__button.active {
+  background-color: var(--first-color);
+  color: white;
+}
+
+/* Selection color during highlight mode */
+.reader__content::selection {
+  background-color: rgba(255, 255, 0, 0.3);
+}
+
+/* For Firefox */
+.reader__content::-moz-selection {
+  background-color: rgba(255, 255, 0, 0.3);
+}
